@@ -165,7 +165,7 @@ int data_from_VestaXYZfile(char* pdbfname, pdbdata* pd)
 /*
  *   //@@@@ added by TEG for reading Kirkland XYZ files; 13 October 2019
  */
-int data_from_KirklandXYZfile(char* pdbfname, pdbdata* pd)
+int data_from_KirklandXYZfile(char* pdbfname, pdbdata* pd, float* pxlen, float* pylen, float* pzlen)
 {
 
 	FILE* file = fopen(pdbfname, "r");
@@ -198,9 +198,12 @@ int data_from_KirklandXYZfile(char* pdbfname, pdbdata* pd)
 		file = fopen(pdbfname, "r");
 
 		fgets(line, sizeof line, file); // first line contains arbitrary info
-		fgets(line, sizeof line, file); // second line contains XYZ sizes of the molecule - irrelevant here
-        sscanf(line, "%f %f %f", &x, &y, &z);
-        pd->adata[0].tempFactor = x; //TEG!!!: I have no recollections why I introduced this line earlier. I am keeping it for now, since it seems harmless
+		fgets(line, sizeof line, file); // second line contains XYZ sizes of the molecule
+		if (pxlen == nullptr || pylen == nullptr || pzlen == nullptr)
+			sscanf(line, "%f %f %f", &x, &y, &z);
+		else
+			sscanf(line, "%f %f %f", pxlen, pylen, pzlen);
+        pd->adata[0].tempFactor = 0; //TEG!!!: I have no recollections why I introduced this line earlier. I am keeping it for now, since it seems harmless
 
 		for (count = 0; count < natoms; count++)
 		{
@@ -715,13 +718,30 @@ int pdb_bubbleSort3(pdbdata* pd, int iFirst, int iLast)
 }
 
 
+int pdb_bubbleSort3a(pdbdata* pd, int iFirst, int iLast)
+{
+	int n = iLast - iFirst;
+	if (n <= 0 || iFirst < 0 || iFirst > pd->natoms || iLast < 0 || iLast > pd->natoms)
+	{
+		printf("\n!!!Bad input parameters in pdb_bubbleSort3a!!!"); return -1;
+	}
+	int i, j;
+	for (i = iFirst; i < iLast - 1; i++)
+		// Last i elements are already in place    
+		for (j = iFirst; j < iLast - (i - iFirst) - 1; j++)
+			if (pd->adata[j].occupancy > pd->adata[j + 1].occupancy)
+				pdb_swap(pd->adata + j, pd->adata + j + 1);
+	return 0;
+}
+
+
 
 int pdb_atomnumbers(pdbdata* pd, int ia[])
 {
 	int i, j;
 	for (i = 0; i < pd->natoms; i++)
 	{
-		// translate the element symbol into atomic number (weight)
+		// translate the element symbol into atomic number
 		ia[i] = 0; j = 0;
 		while (isspace(pd->adata[i].element[j])) j++; // skip leading white spaces
 		if (j > 2)
@@ -743,7 +763,12 @@ int pdb_atomnumbers(pdbdata* pd, int ia[])
 			else if (toupper(pd->adata[i].element[j + 1]) == 'I') ia[i] = 28; // NI = nickel
 		}
 		else if (pd->adata[i].element[j] == 'O') ia[i] = 8; // O = oxygen
-		else if (pd->adata[i].element[j] == 'P') ia[i] = 15; // P = posphorus
+		else if (pd->adata[i].element[j] == 'P')
+		{
+			ia[i] = 15; // P = posphorus
+			if (toupper(pd->adata[i].element[j + 1]) == 'T') ia[i] = 78; // PT = platinum
+			if (toupper(pd->adata[i].element[j + 1]) == 'B') ia[i] = 82; // PB = led
+		}
 		else if (pd->adata[i].element[j] == 'S') ia[i] = 16; // S = sulphur
 		else if (pd->adata[i].element[j] == 'F') ia[i] = 26; // assuming FE = ferrum
 		else if (pd->adata[i].element[j] == 'M')
@@ -775,7 +800,7 @@ int pdb_symbols(pdbdata* pd, int ia[])
 	int i;
 	for (i = 0; i < pd->natoms; i++)
 	{
-		// translate atomic number (weight) into the element symbol
+		// translate atomic number into the element symbol
 		if (ia[i] == 1) { pd->adata[i].element[0] = 'H'; pd->adata[i].element[1] = '\0'; }
 		else if (ia[i] == 6) { pd->adata[i].element[0] = 'C'; pd->adata[i].element[1] = '\0'; }
 		else if (ia[i] == 7) { pd->adata[i].element[0] = 'N'; pd->adata[i].element[1] = '\0'; }
@@ -792,7 +817,9 @@ int pdb_symbols(pdbdata* pd, int ia[])
 		else if (ia[i] == 28) { pd->adata[i].element[0] = 'N'; pd->adata[i].element[1] = 'I'; pd->adata[i].element[2] = '\0'; }
 		else if (ia[i] == 30) { pd->adata[i].element[0] = 'Z'; pd->adata[i].element[1] = '\0'; }
 		else if (ia[i] == 47) { pd->adata[i].element[0] = 'A'; pd->adata[i].element[1] = 'G'; pd->adata[i].element[2] = '\0'; }
+		else if (ia[i] == 78) { pd->adata[i].element[0] = 'P'; pd->adata[i].element[1] = 'T'; pd->adata[i].element[2] = '\0'; }
 		else if (ia[i] == 79) { pd->adata[i].element[0] = 'A'; pd->adata[i].element[1] = 'U'; pd->adata[i].element[2] = '\0'; }
+		else if (ia[i] == 82) { pd->adata[i].element[0] = 'P'; pd->adata[i].element[1] = 'B'; pd->adata[i].element[2] = '\0'; }
 		else
 		{
 			printf("\n!!!Unknown atom number %d!!!", ia[i]);

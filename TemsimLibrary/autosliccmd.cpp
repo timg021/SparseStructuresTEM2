@@ -171,7 +171,7 @@ using namespace std;
 double walltimer;
 #endif
 
-int autosliccmd(vector<string> params, vector<xar::Pair> defocus, double astigm, xar::Pair xyshifts, vector<string> fileout)
+int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair astigm, xar::Pair xyshifts, vector<string> fileout)
 {
 	Counter_Obj thread_counter; // increments the thread counter on construction and decrements it on destruction
 	try
@@ -205,6 +205,8 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, double astigm,
 
 		float* x, * y, * z, * occ, * wobble;
 		float* param, * sparam;
+		vector<float> vxcoor, vycoor, vzcoor, vocc, vwobble;
+		vector<int> vZnum;
 
 		double timer, deltaz, vz;
 		double pi, pi180;
@@ -215,7 +217,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, double astigm,
 		int nfftwinit; // the switch between copying(0) or initializing from new (1) the FFTW plan in autoslic
 		double angleZ(0); // sample rotation angle in radians (around z axis)
 		double angleY(0); // sample rotation angle in radians (around y' axis)
-		//double angleZ2(0); // sample rotation angle in radians (around z" axis, which is supposed to be the illumination axis)
+		double angleZ2(0); // sample rotation angle in radians (around z" axis, which is supposed to be the illumination axis)
 		float ctblength(0); // x and y side length of the slab (containing the sample) in Angstroms
 		float ctblengthz(0); // z thickness of the slab (containing the sample) in Angstroms
 		float iceThick(1); // thickness of the optional layer of amorphous ice in Angstroms
@@ -617,260 +619,366 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, double astigm,
 			if (by > cz) ctblength = by; else ctblength = cz;
 		ctblengthz = ctblength; // ctblengthz may be increased later if an ice layer is added
 
+		// save the atomic coordinates for the future
+		int natom0(-1);
+		if (defocus.size() > 1)
+		{
+			natom0 = natom;
+			vxcoor.resize(natom); vycoor.resize(natom); vzcoor.resize(natom); vocc.resize(natom); vZnum.resize(natom); vwobble.resize(natom);
+			for (size_t k = 0; k < natom; k++)
+			{
+				vxcoor[k] = x[k];
+				vycoor[k] = y[k];
+				vzcoor[k] = z[k];
+				vocc[k] = occ[k];
+				vZnum[k] = Znum[k];
+				vwobble[k] = wobble[k];
+			}
+		}
+
 		// rotate the sample as necessary (using extrinsic(!) Euler angles in the opposite order to the intrinsic Euler angles)
-		// ignore the rotation around the optic axis at this point, since this can be done later using the defocused images,
-		// thus avoiding the unnecessary repeated calculations of multislice propagation through the molecule rotated around the optic axis
+		// and also optionally apply transverse (XY) shifts of the molecule. 
+		// Note that unlike the rotations, XY shifts can move the moleculue outside the containing slab.
 		float xc(float(ctblength / 2.0)), yc(float(ctblength / 2.0)), zc(float(ctblength / 2.0)), xxx, yyy, zzz;
 		float sinZ = float(sin(angleZ)), cosZ = float(cos(angleZ)), sinY = float(sin(angleY)), cosY = float(cos(angleY));
 
-		// rotation around Z axis (by the Z rotation angle)
-		for (size_t k = 0; k < natom; k++)
+		// start of the cycle over defocus distances
+		for (size_t jjj = 0; jjj < defocus.size(); jjj++)
 		{
-			xxx = xc + (x[k] - xc) * cosZ + (-y[k] + yc) * sinZ;
-			yyy = yc + (x[k] - xc) * sinZ + (y[k] - yc) * cosZ;
-			x[k] = xxx; y[k] = yyy;
-		}
+			printf("\n z'' rotation angle = %g (deg), defocus = %g (A)", defocus[jjj].a, defocus[jjj].b);
 
-		// rotation around Y axis (by the Y' rotation angle)
-		for (size_t k = 0; k < natom; k++)
-		{
-			xxx = xc + (x[k] - xc) * cosY + (z[k] - zc) * sinY;
-			zzz = zc + (-x[k] + xc) * sinY + (z[k] - zc) * cosY;
-			x[k] = xxx; z[k] = zzz;
-		}
-		//@@@@@ end TEG code
-
-		/*  calculate the total specimen volume and echo */
-		xmin = xmax = x[0];
-		ymin = ymax = y[0];
-		zmin = zmax = z[0];
-		wmin = wmax = wobble[0];
-		float wobbleaver = 0.0f;
-
-		for (i = 0; i < natom; i++) {
-			if (x[i] < xmin) xmin = x[i];
-			if (x[i] > xmax) xmax = x[i];
-			if (y[i] < ymin) ymin = y[i];
-			if (y[i] > ymax) ymax = y[i];
-			if (z[i] < zmin) zmin = z[i];
-			if (z[i] > zmax) zmax = z[i];
-			if (wobble[i] < wmin) wmin = wobble[i];
-			if (wobble[i] > wmax) wmax = wobble[i];
-			wobbleaver += wobble[i];
-		}
-		wobbleaver /= natom; // we need this value in the case of added ice, where this value is used to wobble each atom
-#ifdef _DEBUG
-		cout << "Total specimen range is\n"
-			<< xmin << " to " << xmax << " in x\n"
-			<< ymin << " to " << ymax << " in y\n"
-			<< zmin << " to " << zmax << " in z" << endl;
-		if (lwobble == 1)
-			cout << "Range of thermal rms displacements (300K) = "
-			<< wmin << " to " << wmax << endl;
-#endif	
-		//@@@@@ start TEG code mods
-		if(lwobble == 1 && wmin == 0 && wmax == 0)
-			throw std::exception("Input XYZ file does not contain thermal vibrations for atoms.");
-		// force max dimensions along xzy axes to be equal to the defined CT sample qube side length
-		if (xmin < 0 || ymin < 0 || zmin < 0)
-			throw std::exception("Error: xmin, ymin or zmin < 0 in the XYZ file.");
-		if (xmax > ctblength || ymax > ctblength || zmax > ctblength)
-			throw std::exception("Error: xmax, ymax or zmax in the XYZ file is larger than the defined CT sample qube side length.");
-		xmin = 0; xmax = ctblength;
-		ymin = 0; ymax = ctblength;
-		zmin = 0; zmax = ctblength;
-		
-		// Optionally add amorphous ice
-		// NOTE that here the ice is added only once per illumination direction, so all images at different defocus distances at this direction see the same ice
-		if (iceThick > 0)
-		{
-			if (iceThick < ctblength) 
-				throw std::exception("Error: ice thickness is less than the defined CT sample qube side length.");
-			else 
+			// restore the original atomic coordinates
+			if (jjj > 0)
 			{
-				natom = AddIce(iceThick, ctblength, natom, &Znum, &x, &y, &z, &occ, &wobble, wobbleaver, &iseed);
-				cz = ctblengthz = iceThick;
+				natom = natom0;
+				for (size_t k = 0; k < natom; k++)
+				{
+					x[k] = vxcoor[k];
+					y[k] = vycoor[k];
+					z[k] = vzcoor[k];
+					occ[k] = vocc[k];
+					Znum[k] = vZnum[k];
+					wobble[k] = vwobble[k];
+				}
 			}
-			printf("\nTotal atoms in added ice plus PDB structure = %d", natom);
-			// Write out the modified XYZ file with the added O and H atoms (H2O molecules of the ice)
-			// NOTE that the name of the output XYZ file is created inside this function by changing the extension of the filename passed to it
-			//xar::SaveXYZfile(fileout[0], ctblength, ctblengthz, natom, Znum, x, y, z, occ, wobble);
-		}
-		//@@@@@ end TEG code mods
 
+			// rotation around Z axis (by the Z rotation angle)
+			for (size_t k = 0; k < natom; k++)
+			{
+				xxx = xc + (x[k] - xc) * cosZ + (-y[k] + yc) * sinZ;
+				yyy = yc + (x[k] - xc) * sinZ + (y[k] - yc) * cosZ;
+				x[k] = xxx; y[k] = yyy;
+			}
 
-		// ---------  setup calculation -----
-		//   set calculation flags
-		aslice.lbeams = lbeams;
-		aslice.lcross = lcross;
-		aslice.lpartl = lpartl;
-		aslice.lstart = lstart;
-		aslice.lwobble = lwobble;
+			// rotation around Y axis (by the Y' rotation angle)
+			for (size_t k = 0; k < natom; k++)
+			{
+				xxx = xc + (x[k] - xc) * cosY + (z[k] - zc) * sinY;
+				zzz = zc + (-x[k] + xc) * sinY + (z[k] - zc) * cosY;
+				x[k] = xxx; z[k] = zzz;
+			}
 
-		//   set calculation parameters (some already set above)
-		//@@@@@ start TEG code
-		//param[ pAX ] = ax;			// supercell size
-		//param[ pBY ] = by;
-		param[pAX] = ctblength;			// supercell size
-		param[pBY] = ctblength;
-		//@@@@@ end TEG code
-		param[pNX] = (float)nx;
-		param[pNY] = (float)ny;
-		param[pENERGY] = v0;
-		param[pDELTAZ] = (float)deltaz;	// slice thickness
-		param[pOAPERT] = aobj;
-		param[pXCTILT] = ctiltx;		// crystal tilt
-		param[pYCTILT] = ctilty;
-		param[pCAPERT] = acmax;		// condencer angles
-		param[pCAPERTMIN] = acmin;
-		param[pTEMPER] = (float)fabs(temperature);
-		param[pNWOBBLE] = (float)nwobble;	//  number config. to average
-		param[pWAVEL] = wavlen;			//  probably recal. autoslice::calculate()
+			// rotation around Z axis (by the Z" rotation angle)
+			if (defocus[jjj].a != 0)
+			{
+				angleZ2 = defocus[jjj].a * pi180;
+				float sinZ2 = float(sin(angleZ2)), cosZ2 = float(cos(angleZ2));
 
-		param[pMODE] = 6;  // save mode = autoslic
+				for (size_t k = 0; k < natom; k++)
+				{
+					xxx = xc + (x[k] - xc) * cosZ2 + (-y[k] + yc) * sinZ2;
+					yyy = yc + (x[k] - xc) * sinZ2 + (y[k] - yc) * cosZ2;
+					x[k] = xxx; y[k] = yyy;
+				}
+			}
 
-		if (lpartl == 1) {
-			param[pDEFOCUS] = df0;
-			param[pOAPERT] = aobj;
-			param[pDDF] = sigmaf;
-			param[pCAPERT] = acmax;
+			// shift along X and Y
+			if (xyshifts.a != 0 || xyshifts.b != 0)
+			{
+				float xshift = float(xyshifts.a);
+				float yshift = float(xyshifts.b);
+				for (size_t k = 0; k < natom; k++)
+				{
+					x[k] += xshift;
+					y[k] += yshift;
+				}
+			}
+			
+			// find all atoms located outside ctbox
+			bool bAtomsOutsideCtbox(false);
+			for (size_t k = 0; k < natom; k++) 
+			{
+				if (x[k] < 0 || x[k] > ctblength || y[k] < 0 || y[k] > ctblength || z[k] < 0 || z[k] > ctblength)
+				{
+					occ[k] = 0;
+					if (!bAtomsOutsideCtbox) // do this only once when the first atom outside ctbox has been found
+					{
+						bAtomsOutsideCtbox = true;
+						printf("\n!!!WARNING: some atoms are outside ctbox and will be removed [anlge_Z = %g, angle_Y' = %g, angle_Z'' = %g (rad)]", angleZ, angleY, defocus[jjj].a * pi180);
+					}
+				}
+			}
 
-			rx = 1.0F / ax;
-			ry = 1.0F / by;
-			cout << "Illumination angle sampling (in mrad) = "
-				<< 1000. * rx * wavlen << ", " << 1000. * ry * wavlen << "\n" << endl;
-		}
-
-		// ------- iterate the multislice algorithm proper -----------
-		//@@@@@ start TEG code
-		if (lwobble != 1) nwobble = 1;
-		// TEG introduced a cycle over thermal vibration configurations, with each thermal configuration step potentially including multiple defocus distances
-
-		for (index_t iwobble = 0; iwobble < nwobble; iwobble++)
-		{
-			if (nwobble > 1)
-				printf("\nThermal configuration no. %zd, iseed2 = %d", iwobble, iseed2);
-
-			if (noutput != 3) // calculate multislice propagation through the molecule
-				aslice.calculate(pix, wave0, depthpix, param, multiMode, natom, &iseed2,
-					Znum, x, y, z, occ, wobble, beams, hbeam, kbeam, nbout, ycross, dfdelt, ctblength, ctblengthz, nfftwinit, nmode);
+			// remove all atoms that are located outside ctbox
+			if (bAtomsOutsideCtbox) 
+			{
+				int natom1(0);
+				vector<float> vxtemp(natom), vytemp(natom), vztemp(natom), vocctemp(natom), vwobbletemp(natom);
+				vector<int> vZnumtemp(natom);
+				for (size_t k = 0; k < natom; k++)
+				{
+					if (occ[k] != 0)
+					{
+						vxtemp[natom1] = x[k];
+						vytemp[natom1] = y[k];
+						vztemp[natom1] = z[k];
+						vocctemp[natom1] = occ[k];
+						vZnumtemp[natom1] = Znum[k];
+						vwobbletemp[natom1] = wobble[k];
+						natom1++;
+					}
+				}
+				natom = natom1;
+				for (size_t k = 0; k < natom1; k++)
+				{
+					x[k] = vxtemp[k];
+					y[k] = vytemp[k];
+					z[k] = vztemp[k];
+					occ[k] = vocctemp[k];
+					Znum[k] = vZnumtemp[k];
+					wobble[k] = vwobbletemp[k];
+				}
+			}
+			
 			//@@@@@ end TEG code
 
-			if (lpartl == 1) {         //    with partial coherence
-				nillum = aslice.nillum;
-				cout << "Total number of illumination angle = "
-					<< nillum << endl;
-				ndf = (int)((2.5F * sigmaf) / dfdelt);  // recal same value in class
-				cout << "Total number of defocus values = " << 2 * ndf + 1 << endl;
+			/*  calculate the total specimen volume and echo */
+			xmin = xmax = x[0];
+			ymin = ymax = y[0];
+			zmin = zmax = z[0];
+			wmin = wmax = wobble[0];
+			float wobbleaver = 0.0f;
+
+			for (i = 0; i < natom; i++) {
+				if (x[i] < xmin) xmin = x[i];
+				if (x[i] > xmax) xmax = x[i];
+				if (y[i] < ymin) ymin = y[i];
+				if (y[i] > ymax) ymax = y[i];
+				if (z[i] < zmin) zmin = z[i];
+				if (z[i] > zmax) zmax = z[i];
+				if (wobble[i] < wmin) wmin = wobble[i];
+				if (wobble[i] > wmax) wmax = wobble[i];
+				wobbleaver += wobble[i];
 			}
-
-			else if (lbeams == 1) {
-				fp1.open(filebeam.c_str());
-				if (fp1.bad()) {
-					cout << "can't open file " << filebeam << endl;
-					exit(0);
+			wobbleaver /= natom; // we need this value in the case of added ice, where this value is used to wobble each atom
+	#ifdef _DEBUG
+			cout << "Total specimen range is\n"
+				<< xmin << " to " << xmax << " in x\n"
+				<< ymin << " to " << ymax << " in y\n"
+				<< zmin << " to " << zmax << " in z" << endl;
+			if (lwobble == 1)
+				cout << "Range of thermal rms displacements (300K) = "
+				<< wmin << " to " << wmax << endl;
+	#endif	
+			//@@@@@ start TEG code mods
+			if(lwobble == 1 && wmin == 0 && wmax == 0)
+				throw std::exception("Input XYZ file does not contain thermal vibrations for atoms.");
+			// force max dimensions along xzy axes to be equal to the defined CT sample qube side length
+			if (xmin < 0 || ymin < 0 || zmin < 0)
+				throw std::exception("Error: xmin, ymin or zmin < 0 in the XYZ file.");
+			if (xmax > ctblength || ymax > ctblength || zmax > ctblength)
+				throw std::exception("Error: xmax, ymax or zmax in the XYZ file is larger than the defined CT sample qube side length.");
+			xmin = 0; xmax = ctblength;
+			ymin = 0; ymax = ctblength;
+			zmin = 0; zmax = ctblength;
+		
+			// Optionally add amorphous ice
+			// NOTE that here the ice is added only once per illumination direction, so all images at different defocus distances at this direction see the same ice
+			if (iceThick > 0)
+			{
+				if (iceThick < ctblength) 
+					throw std::exception("Error: ice thickness is less than the defined CT sample qube side length.");
+				else 
+				{
+					natom = AddIce(iceThick, ctblength, natom, &Znum, &x, &y, &z, &occ, &wobble, wobbleaver, &iseed);
+					cz = ctblengthz = iceThick;
 				}
-				fp1 << " (h,k) = ";
-				for (ib = 0; ib < nbout; ib++)
-					fp1 << " (" << hbeam[ib] << "," << kbeam[ib] << ")";
-				fp1 << endl;
-				nzbeams = beams.ny();
-				fp1 << "nslice, (real,imag) (real,imag) ...\n" << endl;
-				for (islice = 0; islice < nzbeams; islice++) {
-					fp1 << setw(5) << islice;
-					for (ib = 0; ib < nbout; ib++) //  setprecision(4)
-						fp1 << "  " << setw(10) << beams.re(ib, islice)		//????? "%10.6f %10.6f",
-						<< "  " << setw(10) << beams.im(ib, islice);
-					fp1 << endl;
-				}
-				fp1.close();
+				printf("\nTotal atoms in added ice plus PDB structure = %d", natom);
+				// Write out the modified XYZ file with the added O and H atoms (H2O molecules of the ice)
+				// NOTE that the name of the output XYZ file is created inside this function by changing the extension of the filename passed to it
+				//xar::SaveXYZfile(fileout[0], ctblength, ctblengthz, natom, Znum, x, y, z, occ, wobble);
+			}
+			//@@@@@ end TEG code mods
 
-			} // end else 
 
-		/*  ------------------------------------------------------
-			output results and find min and max to echo
-			remember that complex pix are stored in the file in FORTRAN
-				order for compatibility */
+			// ---------  setup calculation -----
+			//   set calculation flags
+			aslice.lbeams = lbeams;
+			aslice.lcross = lcross;
+			aslice.lpartl = lpartl;
+			aslice.lstart = lstart;
+			aslice.lwobble = lwobble;
 
-			pix.findRange(rmin, rmax, aimin, aimax);
-
-			param[pRMAX] = rmax;
-			param[pIMAX] = aimax;
-			param[pRMIN] = rmin;
-			param[pIMIN] = aimin;
-
-			param[pDX] = dx = (float)(ax / ((float)nx));
-			param[pDY] = dy = (float)(by / ((float)ny));
-
+			//   set calculation parameters (some already set above)
 			//@@@@@ start TEG code
-			IXAHWave2D* ph2new = CreateWavehead2D();
-			ph2new->SetData(wavlen, ymin, ymax, xmin, xmax);
-			xar::XArray2D<xar::fcomplex> camp(ny, nx);
-			camp.SetHeadPtr(ph2new);
-			xar::XArray2DFFT<float> xafft(camp);
-			float xst = (float)GetXStep(camp);
-			float yst = (float)GetYStep(camp);
-			xar::XArray2D<double> Xr2, Yr2, Zr2; // squared coordinate differences
-			xar::XArray1D<float> x2, y2, z2; // "wobbled" coordinates of atoms
+			//param[ pAX ] = ax;			// supercell size
+			//param[ pBY ] = by;
+			param[pAX] = ctblength;			// supercell size
+			param[pBY] = ctblength;
+			//@@@@@ end TEG code
+			param[pNX] = (float)nx;
+			param[pNY] = (float)ny;
+			param[pENERGY] = v0;
+			param[pDELTAZ] = (float)deltaz;	// slice thickness
+			param[pOAPERT] = aobj;
+			param[pXCTILT] = ctiltx;		// crystal tilt
+			param[pYCTILT] = ctilty;
+			param[pCAPERT] = acmax;		// condencer angles
+			param[pCAPERTMIN] = acmin;
+			param[pTEMPER] = (float)fabs(temperature);
+			param[pNWOBBLE] = (float)nwobble;	//  number config. to average
+			param[pWAVEL] = wavlen;			//  probably recal. autoslice::calculate()
 
-			// precalculate arrays of squares of coordinate differences for subsequent evaluation of the electrostatic potential
-			if (noutput == 3)
-			{
-				y2.Resize(natom); x2.Resize(natom); z2.Resize(natom);
-				if (lwobble == 1 && nwobble > 1) 
-				{
-					float scale = (float)sqrt(temperature / 300.0);
-					for (size_t k = 0; k < natom; k++) 
-					{
-						x2[k] = x[k] + (float)(wobble[k] * gasdev(&iseed2) * scale);
-						y2[k] = y[k] + (float)(wobble[k] * gasdev(&iseed2) * scale);
-						z2[k] = z[k] + (float)(wobble[k] * gasdev(&iseed2) * scale);
-					}
-				}
-				else
-				{
-					for (size_t k = 0; k < natom; k++)
-					{
-						x2[k] = x[k];
-						y2[k] = y[k];
-						z2[k] = z[k];
-					}
-				}
+			param[pMODE] = 6;  // save mode = autoslic
 
-				Yr2.Resize(ny, natom, 0.0); Xr2.Resize(nx, natom, 0.0); Zr2.Resize(defocus.size(), natom, 0.0);
-				for (iy = 0; iy < ny; iy++)
-				{
-					yyy = ymin + yst * iy;
-					for (size_t k = 0; k < natom; k++)
-						Yr2[iy][k] = (y2[k] - yyy) * (y2[k] - yyy);
-				}
-				for (ix = 0; ix < nx; ix++)
-				{
-					xxx = xmin + xst * ix;
-					for (size_t k = 0; k < natom; k++)
-						Xr2[ix][k] = (x2[k] - xxx) * (x2[k] - xxx);
-				}
-				for (size_t j = 0; j < defocus.size(); j++)
-				{
-					zzz = zmax + (float)defocus[j].b;
-					for (size_t k = 0; k < natom; k++)
-						Zr2[j][k] = (z2[k] - zzz) * (z2[k] - zzz);
-				}
+			if (lpartl == 1) {
+				param[pDEFOCUS] = df0;
+				param[pOAPERT] = aobj;
+				param[pDDF] = sigmaf;
+				param[pCAPERT] = acmax;
+
+				rx = 1.0F / ax;
+				ry = 1.0F / by;
+				cout << "Illumination angle sampling (in mrad) = "
+					<< 1000. * rx * wavlen << ", " << 1000. * ry * wavlen << "\n" << endl;
 			}
 
-			float k2maxo = aobj / wavlen;
-			k2maxo = k2maxo * k2maxo;
-			double C3 = double(Cs3 * 1.e+7); // mm --> Angstroms
-			double C5 = double(Cs5 * 1.e+7); // mm --> Angstroms
-			double dblYCentre = 0.5 * (ymax - ymin), dblXCentre = 0.5 * (xmax - xmin); // centre of rotation
-			xar::XArray2D<float> ampRe0(ny, nx), ampIm0(ny, nx), ampRe(ny, nx), ampIm(ny, nx);
-			ampRe.SetHeadPtr(ph2new->Clone()); ampIm.SetHeadPtr(ph2new->Clone());
-				
-			// start of the cycle over defocus distances
-			for (size_t jjj = 0; jjj < defocus.size(); jjj++)
-			{
-				printf("\n z'' rotation angle = %g (deg), defocus = %g (A)", defocus[jjj].a, defocus[jjj].b);
+			// ------- iterate the multislice algorithm proper -----------
+			//@@@@@ start TEG code
+			if (lwobble != 1) nwobble = 1;
+			// TEG introduced a cycle over thermal vibration configurations, with each thermal configuration step potentially including multiple defocus distances
 
+			for (index_t iwobble = 0; iwobble < nwobble; iwobble++)
+			{
+				if (nwobble > 1)
+					printf("\nThermal configuration no. %zd, iseed2 = %d", iwobble, iseed2);
+
+				if (noutput != 3) // calculate multislice propagation through the molecule
+					aslice.calculate(pix, wave0, depthpix, param, multiMode, natom, &iseed2,
+						Znum, x, y, z, occ, wobble, beams, hbeam, kbeam, nbout, ycross, dfdelt, ctblength, ctblengthz, nfftwinit, nmode);
+				//@@@@@ end TEG code
+
+				if (lpartl == 1) {         //    with partial coherence
+					nillum = aslice.nillum;
+					cout << "Total number of illumination angle = "
+						<< nillum << endl;
+					ndf = (int)((2.5F * sigmaf) / dfdelt);  // recal same value in class
+					cout << "Total number of defocus values = " << 2 * ndf + 1 << endl;
+				}
+
+				else if (lbeams == 1) {
+					fp1.open(filebeam.c_str());
+					if (fp1.bad()) {
+						cout << "can't open file " << filebeam << endl;
+						exit(0);
+					}
+					fp1 << " (h,k) = ";
+					for (ib = 0; ib < nbout; ib++)
+						fp1 << " (" << hbeam[ib] << "," << kbeam[ib] << ")";
+					fp1 << endl;
+					nzbeams = beams.ny();
+					fp1 << "nslice, (real,imag) (real,imag) ...\n" << endl;
+					for (islice = 0; islice < nzbeams; islice++) {
+						fp1 << setw(5) << islice;
+						for (ib = 0; ib < nbout; ib++) //  setprecision(4)
+							fp1 << "  " << setw(10) << beams.re(ib, islice)		//????? "%10.6f %10.6f",
+							<< "  " << setw(10) << beams.im(ib, islice);
+						fp1 << endl;
+					}
+					fp1.close();
+
+				} // end else 
+
+			/*  ------------------------------------------------------
+				output results and find min and max to echo
+				remember that complex pix are stored in the file in FORTRAN
+					order for compatibility */
+
+				pix.findRange(rmin, rmax, aimin, aimax);
+
+				param[pRMAX] = rmax;
+				param[pIMAX] = aimax;
+				param[pRMIN] = rmin;
+				param[pIMIN] = aimin;
+
+				param[pDX] = dx = (float)(ax / ((float)nx));
+				param[pDY] = dy = (float)(by / ((float)ny));
+
+				//@@@@@ start TEG code
+				IXAHWave2D* ph2new = CreateWavehead2D();
+				ph2new->SetData(wavlen, ymin, ymax, xmin, xmax);
+				xar::XArray2D<xar::fcomplex> camp(ny, nx);
+				camp.SetHeadPtr(ph2new);
+				xar::XArray2DFFT<float> xafft(camp);
+				float xst = (float)GetXStep(camp);
+				float yst = (float)GetYStep(camp);
+				xar::XArray2D<double> Xr2, Yr2, Zr2; // squared coordinate differences
+				xar::XArray1D<float> x2, y2, z2; // "wobbled" coordinates of atoms
+
+				// precalculate arrays of squares of coordinate differences for subsequent evaluation of the electrostatic potential
+				if (noutput == 3)
+				{
+					y2.Resize(natom); x2.Resize(natom); z2.Resize(natom);
+					if (lwobble == 1 && nwobble > 1) 
+					{
+						float scale = (float)sqrt(temperature / 300.0);
+						for (size_t k = 0; k < natom; k++) 
+						{
+							x2[k] = x[k] + (float)(wobble[k] * gasdev(&iseed2) * scale);
+							y2[k] = y[k] + (float)(wobble[k] * gasdev(&iseed2) * scale);
+							z2[k] = z[k] + (float)(wobble[k] * gasdev(&iseed2) * scale);
+						}
+					}
+					else
+					{
+						for (size_t k = 0; k < natom; k++)
+						{
+							x2[k] = x[k];
+							y2[k] = y[k];
+							z2[k] = z[k];
+						}
+					}
+
+					Yr2.Resize(ny, natom, 0.0); Xr2.Resize(nx, natom, 0.0); Zr2.Resize(defocus.size(), natom, 0.0);
+					for (iy = 0; iy < ny; iy++)
+					{
+						yyy = ymin + yst * iy;
+						for (size_t k = 0; k < natom; k++)
+							Yr2[iy][k] = (y2[k] - yyy) * (y2[k] - yyy);
+					}
+					for (ix = 0; ix < nx; ix++)
+					{
+						xxx = xmin + xst * ix;
+						for (size_t k = 0; k < natom; k++)
+							Xr2[ix][k] = (x2[k] - xxx) * (x2[k] - xxx);
+					}
+					for (size_t j = 0; j < defocus.size(); j++)
+					{
+						zzz = zmax + (float)defocus[j].b;
+						for (size_t k = 0; k < natom; k++)
+							Zr2[j][k] = (z2[k] - zzz) * (z2[k] - zzz);
+					}
+				}
+
+				float k2maxo = aobj / wavlen;
+				k2maxo = k2maxo * k2maxo;
+				double C3 = double(Cs3 * 1.e+7); // mm --> Angstroms
+				double C5 = double(Cs5 * 1.e+7); // mm --> Angstroms
+				double dblYCentre = 0.5 * (ymax - ymin), dblXCentre = 0.5 * (xmax - xmin); // centre of rotation
+				xar::XArray2D<float> ampRe0(ny, nx), ampIm0(ny, nx), ampRe(ny, nx), ampIm(ny, nx);
+				ampRe.SetHeadPtr(ph2new->Clone()); ampIm.SetHeadPtr(ph2new->Clone());
+				
+				// former starting place of the cycle over different defocus distances	
 				if (noutput != 3) // propagate in free space
 				{
 					// (re)define the transmitted complex amplitude
@@ -879,11 +987,16 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, double astigm,
 							camp[iy][ix] = xar::fcomplex(pix.re(ix, iy), pix.im(ix, iy));
 
 					// propagate
-					if (defocus[jjj].b == 0 && astigm == 0 && (k2maxo != 0 || C3 != 0 || C5 != 0))
+					if (defocus[jjj].b == 0 && (k2maxo != 0 || C3 != 0 || C5 != 0))
 						xafft.Fresnel(double(wavlen), false, double(k2maxo), C3, C5); // fake propagation is needed in order to enforce the spatial Fourier frequency cutoff or aberrations
 					else
-						xafft.FresnelA(defocus[jjj].b + astigm, defocus[jjj].b - astigm, false, double(k2maxo), C3, C5); // propagate to the current defocus distance
+						xafft.FresnelA(defocus[jjj].b, astigm.a, astigm.b * pi180, false, double(k2maxo), C3, C5); // propagate to the current defocus distance
 
+					/*
+					// old code, implementing Z" rotation and XY shifts for the defocused images
+					// the new code instead applies Z" rotation and XY shifts to the molecule (XYZ structure) prior to the illumination
+					// the new code is more accurate in principle, but is slower (in the case of multiple Z" rotations / defocus distances per illumination direction)
+					// the new code also can create FFT reflection (periodicity) artefacts for atoms located close to the boundaries of the ctbox
 					if (defocus[jjj].a != 0 || xyshifts.a != 0 || xyshifts.b != 0) // rotate around Z, then shift along X and Y
 					{
 						xar::Re(camp, ampRe0); xar::Im(camp, ampIm0);
@@ -909,6 +1022,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, double astigm,
 						}
 						xar::MakeComplex(ampRe, ampIm, camp, false);
 					}
+					*/
 				}
 				else // evaluate electrostatic potential
 				{

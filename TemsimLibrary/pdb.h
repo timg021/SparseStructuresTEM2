@@ -43,7 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <math.h>
 
 typedef struct{
   
@@ -91,7 +91,7 @@ int read_pdb( char * pdbname, pdbdata * pd );
  */
 int pdb_atomdata_from_file(char * pdbfname, pdbdata * pd);
 int data_from_VestaXYZfile(char* pdbfname, pdbdata* pd);
-int data_from_KirklandXYZfile(char* pdbfname, pdbdata* pd);
+int data_from_KirklandXYZfile(char* pdbfname, pdbdata* pd, float* pxlen = nullptr, float* pylen = nullptr, float* pzlen = nullptr);
 
 
 /*
@@ -144,7 +144,7 @@ void pdb_chemical_composition( pdbdata * pd );
 void pdb_bubbleSort(pdbdata* pd);
 
 /*
- *  Sort ATOM lines in the descending order according to atomic weights
+ *  Sort ATOM lines in the descending order according to atomic numbers
  */
 void pdb_bubbleSort1(pdbdata* pd, int* ia);
 
@@ -154,10 +154,14 @@ void pdb_bubbleSort1(pdbdata* pd, int* ia);
 int pdb_bubbleSort2(pdbdata* pd, int iFirst, int iLast);
 
 /*
- *  Sort ATOM lines in the ascending order according to occupancies
+ *  Sort ATOM lines in the descending order according to occupancies
  */
 int pdb_bubbleSort3(pdbdata* pd, int iFirst, int iLast);
 
+/*
+ *  Sort ATOM lines in the ascending order according to occupancies
+ */
+int pdb_bubbleSort3a(pdbdata* pd, int iFirst, int iLast);
 
 /*
  *  Compare two element names
@@ -170,8 +174,24 @@ int pdb_greater(char a[3], char b[3]);
 int pdb_atomnumbers(pdbdata* pd, int ia[]);
 
 /*
-*  Translate atomic number (weight) into the element symbol
+*  Translate atomic number into the element symbol
 */
 int pdb_symbols(pdbdata* pd, int ia[]);
+
+/*
+*  Calculate L2 distance between two atomdata points
+*/
+inline double AtomDist(atomdata adata, atomdata bdata)
+{
+	return sqrt((adata.x - bdata.x) * (adata.x - bdata.x) + (adata.y - bdata.y) * (adata.y - bdata.y) + (adata.z - bdata.z) * (adata.z - bdata.z));
+}
+
+/*
+*  Calculate square L2 distance between two atomdata points
+*/
+inline double AtomDist2(atomdata adata, atomdata bdata)
+{
+	return (adata.x - bdata.x) * (adata.x - bdata.x) + (adata.y - bdata.y) * (adata.y - bdata.y) + (adata.z - bdata.z) * (adata.z - bdata.z);
+}
 
 #endif
