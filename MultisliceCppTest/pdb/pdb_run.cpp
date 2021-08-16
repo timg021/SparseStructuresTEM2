@@ -6,13 +6,14 @@
 #include "AddIce.h"
 #include "Seb.h"
 #include "XA_file.h"
+#include "Hungarian.h"
 
 // This program reads a PDB, Vesta XYZ or Kirkland XYZ file, 
 // optionally centers the position of the "structure" within a given "enclosing cube" [0, ctblength] x [0, ctblength] x [0, ctblength],
 // optionally rotates the "structure" by a given angle around the z and y' axes, 
 // optionally removes "duplicate" atomes, and
 // outputs the data in the form of a muSTEM, Vesta XYZ or Kirkland XYZ file, while it also
-// sorts all atoms in descending order with respect to atom weights, and sorts all atoms with the same weight in ascending order with respect to z coordinate
+// sorts all atoms in descending order with respect to atom numbers, and sorts all atoms with the same number in ascending order with respect to z coordinate
 //
 // This programs uses the "miniball" code written by Martin Kutz <kutz@math.fu-berlin.de> and Kaspar Fischer <kf@iaeth.ch> for finding the minimal ball enclosing the structure
 // See https://github.com/hbf/miniball for authors, theory and copyright information
@@ -109,33 +110,7 @@ int main(int argc, char* argv[])
 	printf("\nEnclosing cube side length = %g (Angstroms).", ctblength);
 
 	// line 5
-	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //5th parameter: make all coordinates positive and centre them, or not 
-	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
-	{
-		printf("\n!!!Error reading 'make all coordinates positive' switch from input parameter file.");
-		return -1;
-	}
-	int npositive = 0; // 1 - make all output coordinates positive and centre the sample inside the Enclosing cube, 0 - do not do this
-	npositive = atoi(cparam);
-	if (npositive != 0 && npositive != 1)
-	{
-		printf("\n!!!Unknown value of the 'make all output coordinates positive' switch in input parameter file.");
-		return -1;
-	}
-	if (npositive == 1)
-	{
-		printf("\nThe structure will be shifted into the positive coordinate octant and centred in the enclosing cube.");
-		if (ctblength <= 0)
-		{
-			printf("\n!!!CT cube side length %g is not positive in pdb.txt!!!", ctblength);
-			return -1;
-		}
-	}
-	else
-		printf("\nNo shifting or centering will be done, enclosing cube side length parameter from the input file will be ignored.");
-
-	// line 6
-	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //6th parameter: rotation angle around z
+	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //5th parameter: rotation angle around z
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading rotation angle around z axis from input parameter file.");
@@ -148,8 +123,8 @@ int main(int argc, char* argv[])
 	double cosanglez = cos(anglez);
 	double sinanglez = sin(anglez);
 
-	// line 7
-	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //7th parameter: rotation angle around y' (i.e. around y axis after the initial rotation around z axis)
+	// line 6
+	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //6th parameter: rotation angle around y' (i.e. around y axis after the initial rotation around z axis)
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading rotation angle around y' axis from input parameter file.");
@@ -162,8 +137,8 @@ int main(int argc, char* argv[])
 	double cosangley = cos(angley);
 	double sinangley = sin(angley);
 
-	// line 8 
-	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //8th parameter: rotation angle around z" (this rotation can also be done later within the 2D projected images)
+	// line 7 
+	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //7th parameter: rotation angle around z" (this rotation can also be done later within the 2D projected images)
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading rotation angle around z'' axis from input parameter file.");
@@ -176,8 +151,8 @@ int main(int argc, char* argv[])
 	double cosanglez2 = cos(anglez2);
 	double sinanglez2 = sin(anglez2);
 
-	// line 9
-	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //9th parameter: maximum distance to remove duplicates
+	// line 8
+	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //8th parameter: maximum distance to remove duplicates
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading maximum distance to remove duplicates from input parameter file.");
@@ -190,8 +165,8 @@ int main(int argc, char* argv[])
 	else printf("\nNo checks of the inter-atomic distance will be applied.");
 	double dupdist2 = dupdist * dupdist;
 
-	// line 10
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 10th parameter: output data sort
+	// line 9
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 9th parameter: output data sort
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading output data sort type from input parameter file.");
@@ -201,14 +176,14 @@ int main(int argc, char* argv[])
 	noutsort = atoi(cparam);
 	switch (noutsort)
 	{
-	case 0: printf("\nThe atoms in the input structure will be sorted by the atomic weights in the descending order."); break;
+	case 0: printf("\nThe atoms in the input structure will be sorted by the atomic numbers in the descending order."); break;
 	case 1: printf("\nThe atoms in the input structure will be sorted by the z coordinate in the ascending order."); break;
 	case 2: printf("\nThe atoms in the input structure will be sorted by the occupancy parameter in the descending order."); break;
 	default: printf("\n!!!Unknown output data sort type in the input parameter file."); return -1;
 	}
 
-	// line 11
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 11th parameter: output file name
+	// line 10
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 10th parameter: output file name
 	if (sscanf(cline, "%s %s", ctitle, outfile) != 2)
 	{
 		printf("\n!!!Error reading output file name from input parameter file.");
@@ -216,8 +191,8 @@ int main(int argc, char* argv[])
 	}
 	printf("\nThe output file name = %s.", outfile);
 
-	// line 12
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 12th parameter: output file type
+	// line 11
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 11th parameter: output file type
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading output file type from input parameter file.");
@@ -233,8 +208,8 @@ int main(int argc, char* argv[])
 	default: printf("\n!!!Unknown output file type in input parameter file."); return -1;
 	}
 
-	// line 13
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 13th parameter: free form first line for the output file
+	// line 12
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 12th parameter: free form first line for the output file
 	if (sscanf(cline, "%s %s", ctitle, cfileinfo) != 2)
 	{
 		printf("\n!!!Error reading free-form line for the output file from input parameter file.");
@@ -270,13 +245,13 @@ int main(int argc, char* argv[])
 		vector<Pair> v2angles;
 		vector<vector <Pair> > vvdefocus;
 		vector<Pair> v2shifts;
-		vector<double> vastigm;
+		vector<Pair> vastigm;
 		try
 		{
 			if (GetFileExtension(string(pdbfile)) == string(".TXT"))
 				ReadDefocusParamsFile(pdbfile, v2angles, vvdefocus, false);
 			else
-				if (GetFileExtension(string(pdbfile)) == string(".RELION"))
+				if (GetFileExtension(string(pdbfile)) == string(".RELIONNEW"))
 					ReadRelionDefocusParamsFile(pdbfile, v2angles, vvdefocus, vastigm, v2shifts, false);
 				else
 				{
@@ -296,7 +271,7 @@ int main(int argc, char* argv[])
 	//print_pdb_data(&pd);
 
 	// find the spatial bounds of the structure
-	double xmin, xmax, ymin, ymax, zmin, zmax, xc0 = 0, yc0 = 0, zc0 = 0;
+	double xmin, xmax, ymin, ymax, zmin, zmax;
 	xmin = xmax = pd.adata[0].x;
 	ymin = ymax = pd.adata[0].y;
 	zmin = zmax = pd.adata[0].z;
@@ -309,13 +284,7 @@ int main(int argc, char* argv[])
 		else if (pd.adata[i].y > ymax) ymax = pd.adata[i].y;
 		if (pd.adata[i].z < zmin) zmin = pd.adata[i].z;
 		else if (pd.adata[i].z > zmax) zmax = pd.adata[i].z;
-		xc0 += pd.adata[i].x;
-		yc0 += pd.adata[i].y;
-		zc0 += pd.adata[i].z;
 	}
-	xc0 /= pd.natoms;
-	yc0 /= pd.natoms;
-	zc0 /= pd.natoms;
 	double xsize = xmax - xmin;
 	double ysize = ymax - ymin;
 	double zsize = zmax - zmin;
@@ -323,8 +292,7 @@ int main(int argc, char* argv[])
 	printf("\nThe x, y and z extent of the structure in the input file were:");
 	printf("\n  [%g, %g], [%g, %g], and [%g, %g], respectively.", xmin, xmax, ymin, ymax, zmin, zmax);
 
-
-	// translate element symbols into atomic weights
+	// translate element symbols into atomic numbers
 	int* ia = (int*)malloc(pd.natoms * sizeof(int));
 	if (nfiletype == 2 || nfiletype == 3)
 	{
@@ -333,7 +301,7 @@ int main(int argc, char* argv[])
 	}
 	else if (pdb_atomnumbers(&pd, ia))
 	{
-		printf("\n!!!Error encountered while finding atomic weight for a given element name!!!\n");
+		printf("\n!!!Error encountered while finding atomic number for a given element name!!!\n");
 		return -1; // the function pdb_atomnumbers will print its error messages before exiting
 	}
 
@@ -347,71 +315,66 @@ int main(int argc, char* argv[])
 		printf("\nThe combined structure with the included carbon support now contains %d atoms.", ntotal);
 		// update atom numbers array
 		free(ia); ia = (int*)malloc(pd.natoms * sizeof(int)); pdb_atomnumbers(&pd, ia);
+		xsize = xmax - xmin;
+		ysize = ymax - ymin;
+		zsize = zmax - zmin;
+		printf("\nThe x, y and z extent of the structure is now:");
+		printf("\n  [%g, %g], [%g, %g], and [%g, %g], respectively.", xmin, xmax, ymin, ymax, zmin, zmax);
 	}
 
-	double xc = 0.5 * (xmax + xmin);
-	double yc = 0.5 * (ymax + ymin);
-	double zc = 0.5 * (zmax + zmin);
-
-	double xshift = 0.0;
-	double yshift = 0.0;
-	double zshift = 0.0;
-
-	// if the shift and centring of the output atomic coordinates is required, do it now
-	if (npositive == 1)
+	// Miniball code - find the minimum 3D ball containing the molecule (surprisingly non-trivial!)
+	// See https://github.com/hbf/miniball for authors, theory and copyright information
+	typedef double FT;
+	typedef Seb::Point<FT> Point;
+	typedef std::vector<Point> PointVector;
+	typedef Seb::Smallest_enclosing_ball<FT> Miniball;
+	PointVector S;
+	std::vector<double> coords(3);
+	for (int i = 0; i < pd.natoms; ++i)
 	{
-		// Miniball code
-		// See https://github.com/hbf/miniball for authors, theory and copyright information
-		typedef double FT;
-		typedef Seb::Point<FT> Point;
-		typedef std::vector<Point> PointVector;
-		typedef Seb::Smallest_enclosing_ball<FT> Miniball;
-		PointVector S;
-		std::vector<double> coords(3);
-		for (int i = 0; i < pd.natoms; ++i)
-		{
-			coords[0] = pd.adata[i].x;
-			coords[1] = pd.adata[i].y;
-			coords[2] = pd.adata[i].z;
-			S.push_back(Point(3, coords.begin()));
-		}
-		Miniball mb(3, S);
-		double diam = floor(2.0 * mb.radius()) + 1.0; // we want to round the diameter up and ensure that atoms won't stick out after rotation due to numerical precision
-		Miniball::Coordinate_iterator center_it = mb.center_begin();
-		xc0 = center_it[0];
-		yc0 = center_it[1];
-		zc0 = center_it[2];
-#ifdef _DEBUG
-		mb.verify();
-#endif
-		printf("\nThe centre of the minimal ball enclosing the structure is located at the point x = %g, y = %g, z = %g.", xc0, yc0, zc0);
-		printf("\nThe diameter of this minimal ball is %g.", diam);
+		coords[0] = pd.adata[i].x;
+		coords[1] = pd.adata[i].y;
+		coords[2] = pd.adata[i].z;
+		S.push_back(Point(3, coords.begin()));
+	}
+	Miniball mb(3, S);
+	double diam = floor(2.0 * mb.radius()) + 1.0; // we want to round the diameter up and ensure that atoms won't stick out after rotation due to numerical precision
+	Miniball::Coordinate_iterator center_it = mb.center_begin();
+	double xc0 = center_it[0];
+	double yc0 = center_it[1];
+	double zc0 = center_it[2];
+	#ifdef _DEBUG
+	printf("\n");
+	mb.verify();
+	#endif
+	printf("\nThe centre of the minimal ball enclosing the structure is located at the point x = %g, y = %g, z = %g.", xc0, yc0, zc0);
+	printf("\nThe diameter of this minimal ball is %g.", diam);
 
-		if (ctblength < diam)
-		{
-			ctblength = diam;
-			printf("\n!!! Enclosing_cube_side_length parameter in the input parameter file was too small and has been replaced with %g.", diam);
-		}
 
-		xsize = ysize = zsize = ctblength;
+	// TEG: we make all coordinates non-negative, as it seems that Kirkland's software expects this,
+	// and we also centre each of XYZ coordinates within the interval [0, ctblength], so that the sample can remain within the cube during rotation
+	// and we rotate the structure around the z axis by the anglez and around the y axis by the angley set in the input parameter file
 
-		xc = 0.5 * ctblength;
-		yc = 0.5 * ctblength;
-		zc = 0.5 * ctblength;
-
-		xshift = xc - xc0;
-		yshift = yc - yc0;
-		zshift = zc - zc0;
-
-		printf("\nThe structure will be shifted into the enclosing cube with side length %g and positive coordinates.", ctblength);
-		printf("\nThe new centre of the minimal ball containing the structure will be located at the point x = %g, y = %g, z = %g.\n", xc, yc, zc);
-
-		// TEG: we make all coordinates non-negative, as it seems that Kirkland's software expects this,
-		// and we also centre each of XYZ coordinates within the interval [0, ctblength], so that the sample can remain within the cube during rotation
-		// and we rotate the structure around the z axis by the anglez and around the y axis by the angley set in the input parameter file
+	if (ctblength < diam)
+	{
+		ctblength = diam;
+		printf("\n!!! Enclosing_cube_side_length parameter in the input parameter file was too small and has been replaced with %g.", diam);
 	}
 
-	// rotate the molecule
+	xsize = ysize = zsize = ctblength;
+
+	double xc = 0.5 * ctblength;
+	double yc = 0.5 * ctblength;
+	double zc = 0.5 * ctblength;
+
+	double xshift = xc - xc0;
+	double yshift = yc - yc0;
+	double zshift = zc - zc0;
+
+	printf("\nThe structure will be shifted into the enclosing cube with side length %g and positive coordinates.", ctblength);
+	printf("\nThe new centre of the minimal ball containing the structure will be located at the point x = %g, y = %g, z = %g.\n", xc, yc, zc);
+
+	// center and rotate the molecule
 	double xk, yk, zk;
 	for (i = 0; i < pd.natoms; i++)
 	{
@@ -436,7 +399,7 @@ int main(int argc, char* argv[])
 		pd.adata[i].y = yc + (xk - xc) * sinanglez2 + (yk - yc) * cosanglez2;
 	}
 
-	// sort entries by atom weight in descending order
+	// sort entries by atom number in descending order
 	pdb_bubbleSort1(&pd, ia);
 
 	// find the number of different atom types (this assumes that all entries have been sorted in descending order)
@@ -460,7 +423,7 @@ int main(int argc, char* argv[])
 	for (j = 0; j < natypes; j++)
 		for (i = 0; i < vtypes[j]; i++)
 		{
-			if (i == 0) printf("\nThere are %d %s atoms (with atomic weight = %d) in the structure.", vtypes[j], pd.adata[k].element, ia[k]);
+			if (i == 0) printf("\nThere are %d %s atoms (with atomic number = %d) in the structure.", vtypes[j], pd.adata[k].element, ia[k]);
 			k++;
 		}
 	printf("\n");
@@ -556,7 +519,7 @@ int main(int argc, char* argv[])
 		for (j = 0; j < natypes1; j++)
 			for (i = 0; i < vtypes1[j]; i++)
 			{
-				if (i == 0) printf("\nThere are now %d %s atoms (with atomic weight = %d) in the structure.", vtypes1[j], pd1.adata[k].element, ia1[k]);
+				if (i == 0) printf("\nThere are now %d %s atoms (with atomic number = %d) in the structure.", vtypes1[j], pd1.adata[k].element, ia1[k]);
 				k++;
 			}
 	}
@@ -578,7 +541,7 @@ int main(int argc, char* argv[])
 		for (j = 0; j < natypes1; j++)
 		{
 			fprintf(ff, "%s\n", pd1.adata[k].element); // next atom type info
-			fprintf(ff, "%d %f 1.0 0.0\n", vtypes1[j], (double)ia[k]); // number of atoms of this type, atom weight for this type
+			fprintf(ff, "%d %f 1.0 0.0\n", vtypes1[j], (double)ia[k]); // number of atoms of this type, atom number for this type
 			for (i = 0; i < vtypes1[j]; i++)
 			{
 				fprintf(ff, "%f %f %f\n", pd1.adata[k].x / ctblength, pd1.adata[k].y / ctblength, pd1.adata[k].z / ctblength); // fractional coordinates of an atom

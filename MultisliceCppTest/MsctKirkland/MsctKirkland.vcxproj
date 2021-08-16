@@ -145,6 +145,7 @@
     <ClCompile Include="..\..\XArrayLibrary\Ooura_fftsg_flt.c" />
     <ClCompile Include="..\..\XArrayLibrary\stdafx.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XAHWave.cpp" />
+    <ClCompile Include="..\..\XArrayLibrary\XArray.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XA_file.cpp" />
     <ClCompile Include="..\..\XArrayLibrary\XA_ini.cpp" />
     <ClCompile Include="MultisliceK.cpp" />
@@ -167,7 +168,6 @@
     <ClInclude Include="..\..\XArrayLibrary\XArray1D.h" />
     <ClInclude Include="..\..\XArrayLibrary\XArray2D.h" />
     <ClInclude Include="..\..\XArrayLibrary\XArray3D.h" />
-    <ClInclude Include="..\..\XArrayLibrary\XArrayB.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_data.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_fft2.h" />
     <ClInclude Include="..\..\XArrayLibrary\XA_file.h" />

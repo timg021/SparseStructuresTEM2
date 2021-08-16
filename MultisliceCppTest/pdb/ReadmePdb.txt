@@ -53,33 +53,31 @@ Here is a typical example of a valid Pdb.txt parameter file.
 2.Input_file_type_(see_below): 2
 3.Carbon_support_thickness_and_width_in_Angstroms: 0 0
 4.CT_sample_cube_side_length_in_Angstroms: 10.0
-5.Make_all_coordinates_positive_and_centre_them_(1)_or_not_(0): 0
-6.Desired_rotation_angle_around_z_axis_in_degrees: 30.0
-7.Desired_rotation_angle_around_y'_axis_in_degrees: 60.0
-8.Desired_rotation_angle_around_z"_axis_in_degrees: -45.0
-9.Maximum_distance_in_Angstroms_to_remove_duplicates: 0.5
-10.Sort_0=no_sort_1=increasing_z_2=decreasing_occupancy: 0
-11.Output_file_name: ASP_NEW_Vesta.xyz
-12.Out_file_type_(see_below): 1
-13.Free-form_1st_line_in_output_file: ASP_test
+5.Desired_rotation_angle_around_z_axis_in_degrees: 30.0
+6.Desired_rotation_angle_around_y'_axis_in_degrees: 60.0
+7.Desired_rotation_angle_around_z"_axis_in_degrees: -45.0
+8.Maximum_distance_in_Angstroms_to_remove_duplicates: 0.5
+9.Sort_0=no_sort_1=increasing_z_2=decreasing_occupancy: 0
+10.Output_file_name: ASP_NEW_Vesta.xyz
+11.Out_file_type_(see_below): 1
+12.Free-form_1st_line_in_output_file: ASP_test
 
 //Input parameter file for pdb.exe program
 //1st parameter contains input file name (standard PDB file or XYZ file produced by Vesta).
 //2nd parameter: 0 - PDB input file, 1 - for Vesta XYZ input file, 2 - for Kirkland XYZ file, 3 - text file with orientations/defocuses.
 //3rd parameter contains optional carbon support layer thickness and transversal extent (x=y) in Angstroms, separated by a single white space
 //4th parameter contains the desired CT sample cube side length in Angstroms (should be large enough to contain the whole sample inside for arbitrary 3D rotations)
-//5th parameter: 1 - make all output coordinates positive and centre the sample inside the CT sample cube, 0 - do not do this
-//6th parameter contains the desired rotation angle around z axis in degrees
-//7th parameter contains the desired rotation angle around y' axis in degrees (y' is the y axis after the initial rotation around the z axis)
-//8th parameter contains the desired rotation angle around z" axis in degrees (z" is the z axis after the initial rotations around the z and y' axes)
-//9th parameter: maximum distance (in Angstroms) between two atoms to be considered "duplicates" and remove all but one; if this distance is negative, no action will be taken
-//10th parameter: sort output: 0=no_sort, 1=sort_by_z_coordinates_ascending 2=sort_by_occupancy_column_values_descending (sorting according to atomic weights is always done)
-//11th parameter contains output file name
-//12th parameter: 0 - muSTEM-format XTL file, 1 - Vesta XYZ file, 2 -  Kirkland-format XYZ file
-//13th parameter contains the free-form info line that will be recorded into the first line of the output file
+//5th parameter contains the desired rotation angle around z axis in degrees
+//6th parameter contains the desired rotation angle around y' axis in degrees (y' is the y axis after the initial rotation around the z axis)
+//7th parameter contains the desired rotation angle around z" axis in degrees (z" is the z axis after the initial rotations around the z and y' axes)
+//8th parameter: maximum distance (in Angstroms) between two atoms to be considered "duplicates" and remove all but one; if this distance is negative, no action will be taken
+//9th parameter: sort output: 0=no_sort, 1=sort_by_z_coordinates_ascending 2=sort_by_occupancy_column_values_descending (sorting according to atomic numbers is always done)
+//10th parameter contains output file name
+//11th parameter: 0 - muSTEM-format XTL file, 1 - Vesta XYZ file, 2 -  Kirkland-format XYZ file
+//12th parameter contains the free-form info line that will be recorded into the first line of the output file
 
 // This program reads a PDB, Vesta XYZ, Kirkland XYZ file or a text file with orientations/defocuses, 
-// optionally centers the position of the "molecule" within the "enclosing cube" [0, ctblength] x [0, ctblength] x [0, ctblength],
+// centers the position of the "molecule" within the "enclosing cube" [0, ctblength] x [0, ctblength] x [0, ctblength],
 // optionally adds a layer of amorphous carbon immediately upstream of the "molecule" along the z coordinate,
 // optionally rotates the "molecule" (together with the carbon substrate) by the given "intrinsic" Euler angles around the z, y' and z" axes, and
 // optionally removes "duplicate" atoms that are located closer than the given distance to other atoms in the "molecule",
@@ -149,50 +147,39 @@ CFILL_FRACTION = 0.9; (filling fraction for this density) and RMIN = 1.4 (min se
 Parameter 4 contains the side length (in Angstroms) of the virtual cube in 3D that is supposed to contain the atomic
 structure inside (see details below).
 
-Parameter 5 can equal to 0 or 1.
-"0" implies that the atomic structure read from the input file will not be shifted in space.
-"1" implies that the atomic structure read from the input PDB or XYZ file will be shifted into the positive octant
-of the Cartesian coordinates in 3D and centred inside the enclosing cube. The side length of the enclosing cube
-will be the maximum between the value defined in Parameter 4 and the diameter of the minimal ball in 3D that can
-contain the whole structure (including the optionally added carbon support). If the side length given in Parameter 4
-is smaller than the diameter of the minimal ball, it will be replaced with the minimal ball diameter. This is done
-in order to ensure that any rotation of the structure in 3D around the centre of the enclosing cube will keep
-the structure inside the enclosing cube. The centre of the minimal enclosing ball is shifted to coincide with 
-the centre of the enclosing cube.
-
-Parameter 6 defines the rotation angle around the z axis in degrees. The rotation of the whole structure (including the
+Parameter 5 defines the rotation angle around the z axis in degrees. The rotation of the whole structure (including the
 optionally added carbon support layer) is carried out after the centering of the structure inside the enclosing cube.
 The Euler angle convention corresponds to that in Heymann et al, Journal of Structural Biology 151 (2005) 196–207.
 
-Parameter 7 defines the rotation angle around the y' axis in degrees (y' axis corresponds to the y axis after 
+Parameter 6 defines the rotation angle around the y' axis in degrees (y' axis corresponds to the y axis after 
 the initial rotation around the z axis). The rotation of the whole structure (including the
 optionally added carbon support layer) is carried out after the centering of the structure and after the initial
 rotation around the z axis.
 
-Parameter 8 defines the rotation angle around the z" axis in degrees (z" axis corresponds to the z axis after 
+Parameter 7 defines the rotation angle around the z" axis in degrees (z" axis corresponds to the z axis after 
 the initial rotations around the z and y' axes). The rotation of the whole structure (including the
 optionally added carbon support layer) is carried out after the centering of the structure and after the initial
 rotation around the z and y' axes.
 
-Parameter 9 defines the maximum distance (in Angstroms) between two atoms to be considered "duplicates". Such duplicates
+Parameter 8 defines the maximum distance (in Angstroms) between two atoms to be considered "duplicates". Such duplicates
 are removed from the structure before it is written to the output file (only one atom is retained from each group of
 atoms located closer than this distance to a given atom). If this distance is negative, no action will be taken.
 
-Parameter 10 can be equal to 0, 1 or 2.
-"0" corresponds to sorting of atoms in the output file according to the decreasing atomic weights.
+Parameter 9 can be equal to 0, 1 or 2.
+"0" corresponds to sorting of atoms in the output file according to the decreasing atomic numbers.
 "1" corresponds to sorting of atoms in the output file according to the increasing z coordinates.
 "2" corresponds to sorting of atoms in the output file according to the increasing values in the occupancy column.
 
-Parameter 11 contains the name of the output file.
+Parameter 10 contains the name of the output file.
 
-Parameter 12 can be equal to 0, 1 or 2.
+Parameter 11 can be equal to 0, 1 or 2.
 "0" corresponds to muSTEM XTL output file format (http://tcmp.ph.unimelb.edu.au/mustem/dist/muSTEM_v5.0_manual.pdf). 
 "1" corresponds to Vesta XYZ file output format.
 "2" corresponds to Kirkland XYZ output file format.
 Note that the optional column with RMS amplitudes of atomic vibrations is not written out. It can be added later
 e.g. by editing the output file in Excel.
 
-Parameter 13 contains a free-form information line (with no white spaces) that is written in the muSTEM, Vesta and Kirkland XYZ file formats.
+Parameter 12 contains a free-form information line (with no white spaces) that is written in the muSTEM, Vesta and Kirkland XYZ file formats.
 
 ================================================================================================== 
 Example of a valid XYZ file in Kirkland's XYZ format (see detailed description in the 

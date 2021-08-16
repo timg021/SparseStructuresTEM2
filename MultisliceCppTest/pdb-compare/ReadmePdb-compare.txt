@@ -43,20 +43,22 @@ Here is a typical example of a valid Pdb-compare.txt parameter file.
 
 =======================================================================================
 *** PDB compare program
-1.Input_test_file_name: outA.xyz
+1.Input_test_file_name: outAmg2000.xyz
 2.Type_of_the_input_test_file_(see_below): 2
-3.Input_reference_file_name: Gold_10095.xyz
-4.Type_of_the_input_reference_file_(see_below): 2
-5.Output_file_name: Gold_10095_compareZZZ.txt
-6.Free-form_line_for_output_file: ***
+3.Rotate_test_structure_around_z,_y'_and_z"_axes_by_(degrees): 0 0 0
+4.Input_reference_file_name: 7kod_DW_noH.xyz
+5.Type_of_the_input_reference_file_(see_below): 2
+6.Output_file_name: zzzmg2000_compare.txt
+7.Free-form_line_for_output_file: ***
 
 //Input parameter file for pdb.exe program
 //1st line contains input test file name
 //2nd line: type of the 1st input file: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file.
-//3rd line contains input reference file name - must be equal to or longer than the test file
-//4th line: type of the 2nd input file: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file.
-//5th line contains output file name
-//6th line contains the free-form info line that will be recorded into the first line of the output file
+//3rd line contains Euler rotation angles in degrees that are applied to the test structure before comparison
+//4th line contains input reference file name - must be equal to or longer than the test file
+//5th line: type of the 2nd input file: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file.
+//6th line contains output file name
+//7th line contains the free-form info line that will be recorded into the first line of the output file
 ========================================================================================
 
 Note that the "numbering" of parameters in the parameter names, such as "2" in 
@@ -78,18 +80,22 @@ Parameter 2 can be equal to 0, 1 or 2. It defines the format of the first input 
 "1" corresponds to Vesta XYZ input file format.
 "2" corresponds to Kirkland XYZ input file format.
 
-Parameter 3 contains the name of a "reference" atomic structure file in PDB , Vesta XYZ or
+Parameter 3 contains Euler rotation angles (around z, y and z" axes, in this order) in degrees that are applied
+to the test structure before comparison with the reference structure. This can be helpful in checking known symmetries
+of the structures.
+
+Parameter 4 contains the name of a "reference" atomic structure file in PDB , Vesta XYZ or
 Kirkland XYZ format. This input file must be present in the same folder where Pdb-compare.exe is started from, or, 
 alternatively, the filename can include a fully specified pathname (OS specific). 
 
-Parameter 4 can be equal to 0, 1 or 2. It defines the format of the second input file.
+Parameter 5 can be equal to 0, 1 or 2. It defines the format of the second input file.
 "0" corresponds to PDB input file format. 
 "1" corresponds to Vesta XYZ input file format.
 "2" corresponds to Kirkland XYZ input file format.
 
-Parameter 5 contains the name of the output file. This file will be saved in ASCII text format.
+Parameter 6 contains the name of the output file. This file will be saved in ASCII text format.
 
-Parameter 6 contains a free-form information line (with no white spaces) that is written 
+Parameter 7 contains a free-form information line (with no white spaces) that is written 
 as the first line in the output file.
 
 ================================================================================================== 

@@ -2,15 +2,18 @@
 #include <math.h>
 #include <ctype.h>
 #include <xstring>
+#include <vector>
+//#include "Hungarian.h"
 #include "pdb.h"
 
+using namespace std;
 
 int main(int argc, char* argv[])
 {
 	char pdbfile[1024], pdbfile1[1024];
 	char outfile[1024];
 	char cfileinfo[1024];
-	char cline[1024], ctitle[1024], cparam[1024]; // auxiliary storage
+	char cline[1024], ctitle[1024], cparam[1024], cparam1[1024], cparam2[1024]; // auxiliary storage
 
 	// Read input parameter file pdb.txt
 	printf("\nStarting pdb-compare program ...\n");
@@ -56,15 +59,38 @@ int main(int argc, char* argv[])
 	}
 
 	// line 3
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 3nd parameter: input reference file name
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 3rd parameter: Euler rotation angles in degrees
+	if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4)
+	{
+		printf("\n!!!Error reading Euler rotation angles from input parameter file.");
+		return -1;
+	}
+	double anglez = -atof(cparam);
+	double angley = -atof(cparam1);
+	double anglez2 = -atof(cparam2);
+	if (nfiletype != 2 && (anglez || angley || anglez2))
+		printf("\n!!!WARNING: Euler rotation angles will be ignored, as they can only be applied to input files in Kirkland XYZ format.");
+	else
+		if (nfiletype == 2 && (anglez || angley || anglez2))
+		{
+			printf("\nThe structure will be rotated by %g degrees around the z axis.", anglez);
+			printf("\nThe structure will be rotated by %g degrees around the y' axis.", angley);
+			printf("\nThe structure will be rotated by %g degrees around the z'' axis.", anglez2);
+		}
+	anglez *= 3.141592653589793 / 180.0;
+	angley *= 3.141592653589793 / 180.0;
+	anglez2 *= 3.141592653589793 / 180.0;
+
+	// line 4
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 4th parameter: input reference file name
 	if (sscanf(cline, "%s %s", ctitle, pdbfile1) != 2)
 	{
 		printf("\n!!!Error reading input reference file name from input parameter file.");
 		return -1;
 	}
 
-	// line 4
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 4nd parameter: input reference file type
+	// line 5
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 5th parameter: input reference file type
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading input reference file type from input parameter file.");
@@ -78,16 +104,49 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	// line 5
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 5th parameter: output file name
+	// line 6
+	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //6th parameter: maximum distance in Angstroms below which a found atom match is considered acceptable
+	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
+	{
+		printf("\n!!!Error reading maximum match distance from input parameter file.");
+		return -1;
+	}
+	double DistMax = 0.0;
+	DistMax = atof(cparam);
+	if (DistMax <= 0)
+	{
+		printf("\n!!!Error: maximum match distance must be positive.");
+		return -1;
+	}
+	double DistMax2 = DistMax * DistMax;
+
+	// line 7
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 7th parameter: output data sort
+	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
+	{
+		printf("\n!!!Error reading output data sort type from input parameter file.");
+		return -1;
+	}
+	int noutsort = 0; // output file sort 0 - no sort, 1 - sort by ascending order of z coordinate, 2- sort by distances between the matched test and reference atoms in the ascending order
+	noutsort = atoi(cparam);
+	switch (noutsort)
+	{
+	case 0: printf("\nThe atoms in the input structure will be sorted by the atomic numbers in the descending order."); break;
+	case 1: printf("\nThe atoms in the input structure will be sorted by the z coordinate in the ascending order."); break;
+	case 2: printf("\nThe atoms in the input structure will be sorted by the distances between the matched test and reference atoms in the ascending order."); break;
+	default: printf("\n!!!Unknown output data sort type in the input parameter file."); return -1;
+	}
+
+	// line 8
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 8th parameter: output file name
 	if (sscanf(cline, "%s %s", ctitle, outfile) != 2)
 	{
 		printf("\n!!!Error reading output file name from input parameter file.");
 		return -1;
 	}
 
-	// line 8
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 8th parameter: free form first line for the output file
+	// line 9
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 9th parameter: free form first line for the output file
 	if (sscanf(cline, "%s %s", ctitle, cfileinfo) != 2)
 	{
 		printf("\n!!!Error reading free-form line for the output file from input parameter file.");
@@ -97,7 +156,8 @@ int main(int argc, char* argv[])
 	fclose(ffpar);
 
 
-	// read input file1
+	// read input file1 (test structure)
+	float xctblength, yctblength, zctblength;
 	pdbdata pd;
 	pdbdata_init(&pd);
 	if (nfiletype == 0)
@@ -113,10 +173,16 @@ int main(int argc, char* argv[])
 	else if (nfiletype == 2)
 	{
 		printf("Reading input file1 %s in Kirkland XYZ format ...\n", pdbfile);
-		if (data_from_KirklandXYZfile(pdbfile, &pd) == -1) return -1; // read Kirkland XYZ file
+		if (data_from_KirklandXYZfile(pdbfile, &pd, &xctblength, &yctblength, &zctblength) == -1) return -1; // read Kirkland XYZ file
+
+		if ((anglez || angley || anglez2) && (xctblength <= 0 || yctblength <= 0 || zctblength <= 0))
+		{
+			printf("\n!!!ERROR: CT box sizes are not all positive in the input file %s.", pdbfile);
+			return -1;
+		}
 	}
 
-	// read input file2
+	// read input file2 (reference structure)
 	pdbdata pd1;
 	pdbdata_init(&pd1);
 	if (nfiletype1 == 1)
@@ -136,13 +202,13 @@ int main(int argc, char* argv[])
 	}
 	
 
-	//translate element symbols into atomic weights
+	//translate element symbols into atomic numbers
 	int* ia = (int*)malloc(pd.natoms * sizeof(int));
 	if (nfiletype != 2)
 	{
 		if (pdb_atomnumbers(&pd, ia))
 		{
-			printf("\n!!!Error encountered while finding atomic weight for a given element name!!!\n");
+			printf("\n!!!Error encountered while finding atomic number for a given element name!!!\n");
 			return -1;
 		}
 	}
@@ -154,7 +220,7 @@ int main(int argc, char* argv[])
 	{
 		if (pdb_atomnumbers(&pd1, ia1))
 		{
-			printf("\n!!!Error encountered while finding atomic weight for a given element name!!!\n");
+			printf("\n!!!Error encountered while finding atomic number for a given element name!!!\n");
 			return -1;
 		}
 	}
@@ -169,21 +235,11 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 
-	// sort entries by atom weight in descending order
+	// sort entries by atom number in descending order
 	pdb_bubbleSort1(&pd, ia);
 	pdb_bubbleSort1(&pd1, ia1);
 
-
-	printf("\nComparing atoms positions from %s test file with those in %s reference file ...", pdbfile, pdbfile1);
-	printf("\n");
-	//	if (pd.natoms > pd1.natoms)
-	//	{
-	//		printf("\n!!!Error: the test file contains more atom entries than the reference file.!!!\n");
-	//		return -1;
-	//	}
-
-
-		// open the output file early in order to start writing some results there as they are obtained
+	// open the output file early in order to start writing some results there as they are obtained
 	FILE* ff = fopen(outfile, "wt");
 	if (ff == NULL)
 	{
@@ -192,10 +248,10 @@ int main(int argc, char* argv[])
 	}
 	fprintf(ff, "For each atom from %s file, locating the closest atom in %s file.\n", pdbfile, pdbfile1);
 	fprintf(ff, "Each entry contains the following data:\n");
-	fprintf(ff, "1st column contains atomic weights (reference data)\n");
+	fprintf(ff, "1st column contains atomic numbers (reference data)\n");
 	fprintf(ff, "2nd, 3rd, and 4th columns contain x, y and z atomic coordinates, respectively (reference data)\n");
 	fprintf(ff, "5th column contains the L2 distance between atoms in the test and the matched reference data.\n");
-	fprintf(ff, "6th column contains atomic weights (matched test data)\n");
+	fprintf(ff, "6th column contains atomic numbers (matched test data)\n");
 	fprintf(ff, "7th, 8th, and 9th columns contain x, y and z atomic coordinates, respectively (matched test data)\n");
 	fprintf(ff, "10th column contains original data for the test file\n");
 	fprintf(ff, "%s", cfileinfo); // free-form file info line
@@ -205,40 +261,132 @@ int main(int argc, char* argv[])
 	for (int j = 0; j < pd.natoms; j++) pd.adata[j].tempFactor = -1; // this parameter will contain the index of the found best match
 	for (int i = 0; i < pd1.natoms; i++) pd1.adata[i].tempFactor = -1; // this parameter will contain the index of the found best match
 
-	// for each atom in the reference structure pd1 find the closest atom in the test structure pd, and save the results in the new "double" structure pd2 
-	int i0, jmin;
-	double r2, r2min;
-	for (int i = 0; i < pd1.natoms; i++)
+	// rotate the molecule
+	if (anglez || angley || anglez2)
 	{
-		jmin = 0;
-		r2min = (pd1.adata[i].x - pd.adata[0].x) * (pd1.adata[i].x - pd.adata[0].x) + (pd1.adata[i].y - pd.adata[0].y) * (pd1.adata[i].y - pd.adata[0].y) + (pd1.adata[i].z - pd.adata[0].z) * (pd1.adata[i].z - pd.adata[0].z);
-		for (int j = 1; j < pd.natoms; j++)
-		{
-			r2 = (pd1.adata[i].x - pd.adata[j].x) * (pd1.adata[i].x - pd.adata[j].x) + (pd1.adata[i].y - pd.adata[j].y) * (pd1.adata[i].y - pd.adata[j].y) + (pd1.adata[i].z - pd.adata[j].z) * (pd1.adata[i].z - pd.adata[j].z);
-			if (r2 < r2min) { r2min = r2;  jmin = j; }
-		}
+		printf("\nRotating the test structure ...");
+		double cosanglez = cos(anglez);
+		double sinanglez = sin(anglez);
+		double cosangley = cos(angley);
+		double sinangley = sin(angley);
+		double cosanglez2 = cos(anglez2);
+		double sinanglez2 = sin(anglez2);
 
-		if (pd.adata[jmin].tempFactor == -1) // this test atom has not been matched yet
+		double xc = 0.5 * xctblength;
+		double yc = 0.5 * yctblength;
+		double zc = 0.5 * zctblength;
+
+		double xk, yk, zk;
+
+		for (int i = 0; i < pd.natoms; i++)
 		{
-			pd.adata[jmin].tempFactor = i;
-			pd1.adata[i].tempFactor = jmin;
-			pd1.adata[i].occupancy = sqrt(r2min);
-		}
-		else // this test atom has been already matched with another reference atom before
-		{
-			// let us find out if the new match is better than the old one, and if so - reassign the previous assignment to the new one
-			i0 = (int)pd.adata[jmin].tempFactor;
-			r2 = (pd1.adata[i0].x - pd.adata[jmin].x) * (pd1.adata[i0].x - pd.adata[jmin].x) + (pd1.adata[i0].y - pd.adata[jmin].y) * (pd1.adata[i0].y - pd.adata[jmin].y) + (pd1.adata[i0].z - pd.adata[jmin].z) * (pd1.adata[i0].z - pd.adata[jmin].z);
-			if (r2min < r2) // new match is better
-			{
-				pd1.adata[i0].tempFactor = -1; // invalidate the old match
-				pd.adata[jmin].tempFactor = i;
-				pd1.adata[i].tempFactor = jmin;
-				pd1.adata[i].occupancy = sqrt(r2min);
-			}
-			// else do nothing, i.e. ignore this newly found match, since it is worse than the old one
+			xk = pd.adata[i].x;
+			yk = pd.adata[i].y;
+			zk = pd.adata[i].z;
+
+			//rotation around Z axis
+			pd.adata[i].x = xc + (xk - xc) * cosanglez + (-yk + yc) * sinanglez;
+			pd.adata[i].y = yc + (xk - xc) * sinanglez + (yk - yc) * cosanglez;
+
+			//rotation around Y' axis
+			xk = pd.adata[i].x;
+			pd.adata[i].x = xc + (xk - xc) * cosangley + (zk - zc) * sinangley;
+			pd.adata[i].z = zc + (-xk + xc) * sinangley + (zk - zc) * cosangley;
+
+			//rotation around Z" axis
+			xk = pd.adata[i].x;
+			yk = pd.adata[i].y;
+			pd.adata[i].x = xc + (xk - xc) * cosanglez2 + (-yk + yc) * sinanglez2;
+			pd.adata[i].y = yc + (xk - xc) * sinanglez2 + (yk - yc) * cosanglez2;
 		}
 	}
+
+	printf("\nCalculating distances between atoms in the %s test file ...", pdbfile);
+	double disttot(0), rmintot = AtomDist(pd.adata[0], pd.adata[1]);
+	for (int i = 0; i < pd.natoms - 1; i++)
+	{
+		double r, rmin = AtomDist(pd.adata[i], pd.adata[i + 1]);
+		for (int j = i + 2; j < pd.natoms; j++)
+		{
+			r = AtomDist(pd.adata[i], pd.adata[j]);
+			if (r < rmin) rmin = r;
+		}
+		if (rmin < rmintot) rmintot = rmin;
+		disttot += rmin;
+	}
+	disttot /= double(pd.natoms - 1);
+	printf("\nAverage distance between closest pairs of atoms in the test structure from %s = %g.", pdbfile, disttot);
+	printf("\nMinimum distance between closest pairs of atoms in the test structure from %s = %g.", pdbfile, rmintot);
+
+	printf("\nCalculating distances between atoms in the %s reference file ...", pdbfile1);
+	disttot = 0.0; rmintot = AtomDist(pd1.adata[0], pd1.adata[1]);
+	for (int i = 0; i < pd1.natoms - 1; i++)
+	{
+		double r, rmin = AtomDist(pd1.adata[i], pd1.adata[i + 1]);
+		for (int j = i + 2; j < pd1.natoms; j++)
+		{
+			r = AtomDist(pd1.adata[i], pd1.adata[j]);
+			if (r < rmin) rmin = r;
+		}
+		if (rmin < rmintot) rmintot = rmin;
+		disttot += rmin;
+	}
+	disttot /= double(pd1.natoms - 1);
+	printf("\nAverage distance between closest pairs of atoms in the reference structure from %s = %g.", pdbfile1, disttot);
+	printf("\nMinimum distance between closest pairs of atoms in the reference structure from %s = %g.", pdbfile1, rmintot);
+
+	// for each atom in the reference structure pd1 find the closest atom in the test structure pd, and save the results in the new "double" structure pd2 
+	vector< vector<double> > mR2(pd1.natoms);
+	for (int i = 0; i < pd1.natoms; i++) mR2[i].resize(pd.natoms);
+
+	printf("\nCalculating pair-wise  %s test file with those in %s reference file ...", pdbfile, pdbfile1);
+	for (int i = 0; i < pd1.natoms; i++)
+	{
+		for (int j = 0; j < pd.natoms; j++)
+		{
+			mR2[i][j] = AtomDist2(pd1.adata[i], pd.adata[j]);
+		}
+	}
+
+	/*
+	//THIS IS VERY SLOW - may be OK for 100 atoms or so, but definitely not for 10,000
+	printf("\nUsing Hungarian algorithm to find the optimal bipartate matching ...");
+	HungarianAlgorithm HungAlgo;
+	vector<int> assignment;
+	double cost = HungAlgo.Solve(mR2, assignment);
+
+	for (int i = 0; i < pd1.natoms; i++)
+	{
+		pd1.adata[i].tempFactor = assignment[i]; // index of the closest atom from the test strcture
+		pd1.adata[i].occupancy = sqrt(mR2[i][assignment[i]]); // distance to the closest atom
+	}
+	*/
+	
+	// this is a simple and fast, but imperfect, alternative to optimal bipartate matching
+	printf("\nSearching for closest atom pairs ...");
+	for (int i = 0; i < pd1.natoms; i++)
+	{
+		int jmin(0);
+		double r2min = mR2[i][jmin];
+		for (int j = 1; j < pd.natoms; j++)
+		{
+			if (mR2[i][j] < r2min)
+			{
+				if (pd.adata[jmin].tempFactor = -1) // if this test atom has not been already matched 
+				{
+					r2min = mR2[i][j];
+					jmin = j;
+				}
+			}
+		}
+		if (r2min < DistMax2)
+		{
+			pd1.adata[i].tempFactor = jmin; // index of the closest atom from the test strcture
+			pd1.adata[i].occupancy = sqrt(mR2[i][jmin]); // distance to the closest atom
+			pd.adata[jmin].tempFactor = i; // mark this test atom as already matched
+		}
+	}
+	
 
 	// calculate average distance and std
 	int nodup = 0;
@@ -279,15 +427,29 @@ int main(int argc, char* argv[])
 			fprintf(ff, "\n@@@ Reference atom no. %d, atom type = %d, atom positions = (%g, %g, %g) has not been matched.", i, ia1[i], pd1.adata[i].x, pd1.adata[i].y, pd1.adata[i].z);
 		}
 
+	// sort output records: 0 - no sort, 1 - sort by ascending order of z coordinate, 2- sort by distances between the matched test and reference atoms in the ascending order
+	// NOTE that we don't need to worry about sorting the test structure, because after the reference data is sorted, the matched atoms of the test structure will still be linked through pd1.adata[i].tempFactor
+	if (noutsort == 1)
+	{
+		printf("\nSorting the output in ascending order of z coordinate in the reference structure ...");
+		pdb_bubbleSort2(&pd1, 0, pd.natoms);
+	}
+	else if (noutsort == 2)
+	{
+		printf("\nSorting the output by distances between the matched reference and test atoms in ascending order ...");
+		pdb_bubbleSort3a(&pd1, 0, pd.natoms);
+	}
+
 	// output to the target file
 	printf("\nWriting output comparison file %s ...\n", outfile);
 	fprintf(ff, "\n");
+	int jmin;
 	for (int i = 0; i < pd1.natoms; i++)
 	{
 		if (pd1.adata[i].tempFactor == -1) continue;
 		jmin = (int)pd1.adata[i].tempFactor;
-		fprintf(ff, "\n%d %f %f %f %f", ia1[i], pd1.adata[i].x, pd1.adata[i].y, pd1.adata[i].z, pd1.adata[i].occupancy);
-		fprintf(ff, " %d %f %f %f %f ", ia[jmin], pd.adata[jmin].x, pd.adata[jmin].y, pd.adata[jmin].z, pd.adata[jmin].occupancy);
+		fprintf(ff, "\n%d %f %f %f %f", ia1[i], pd1.adata[i].x, pd1.adata[i].y, pd1.adata[i].z, pd1.adata[i].occupancy); // reference atom first
+		fprintf(ff, " %d %f %f %f %f ", ia[jmin], pd.adata[jmin].x, pd.adata[jmin].y, pd.adata[jmin].z, pd.adata[jmin].occupancy); // matched nearest test atom second
 	}
 	fclose(ff);
 	free(ia1);

@@ -4,9 +4,8 @@
 #include <thread>
 #include <chrono>
 
-#include "XA_ini.h"
-#include "XA_data.h"
 #include "autosliccmd.h"
+#include "pdb.h"
 
 using namespace xar;
 
@@ -114,28 +113,42 @@ int main(int argc, char* argv[])
 		string DefocFile = string(cparam);
 		vector<Pair> v2angles;
 		vector<vector <Pair> > vvdefocus;
-		vector<double> vastigm;
+		vector<Pair> vastigm;
 		vector<Pair> v2shifts;
 		if (GetFileExtension(DefocFile) == string(".TXT"))
 		{
 			ReadDefocusParamsFile(DefocFile, v2angles, vvdefocus, false);
-			vastigm.resize(v2angles.size(), 0.0);
+			vastigm.resize(v2angles.size(), xar::Pair{ 0.0, 0.0 });
 			v2shifts.resize(v2angles.size(), xar::Pair{ 0.0, 0.0 });
 		}
 		else
-			if (GetFileExtension(DefocFile) == string(".RELION"))
+			if (GetFileExtension(DefocFile) == string(".RELIONNEW"))
+			{
 				//!!! note that the ReadRelionDefocusParameters currently can have only one defocus distance per illumination angle
 				ReadRelionDefocusParamsFile(DefocFile, v2angles, vvdefocus, vastigm, v2shifts, true);
+				//!!! in the case of Relion defocus file, we presume that the defocus distances are given from the centre of the molecule,
+				// and we adjust these defocus distances so that they would be measured from the "exit plane", as in the case of .txt defocus files
+				char chaa[1024], cinfile[1024];
+				if (sscanf(autoslictxt[0].data(), "%s %s", chaa, cinfile) != 2)
+					throw std::exception("Error reading line 1 of input parameter array.");
+				pdbdata pd;
+				pdbdata_init(&pd);
+				float pxlen, pylen, pzlen;
+				if (data_from_KirklandXYZfile(cinfile, &pd, &pxlen, &pylen, &pzlen) == -1) // read Kirkland XYZ file
+					throw std::exception("Error: reading XYZ file given in parameter 1 of the input parameter file.");
+				pzlen *= 0.5;
+				for (int i = 0; i < vvdefocus.size(); i++) vvdefocus[i][0].b -= pzlen;
+			}
 			else throw std::exception("Error: unrecognised filename extension in parameter 14 of the input parameter file.");
 
 		index_t nangles = v2angles.size(); // number of different illumination directions 
 		vector<index_t> vndefocus(nangles); // vector of numbers of rotations around the optic axis = number of defocus planes at different rotation angles
 		for (index_t i = 0; i < nangles; i++) vndefocus[i] = vvdefocus[i].size();
-		if (GetFileExtension(outfilename) == string(".GRC")) // check that there is only one input defocused complex amplitude file per each illumination angle
+		if (GetFileExtension(outfilename) == string(".GRC") || nOutputType == 3) // check that there is only one input defocused complex amplitude file per each illumination angle
 		{
 			for (index_t i = 0; i < nangles; i++)
 				if (vndefocus[i] != 1)
-					throw std::exception("Error: only one output defocused complex amplitude file per each illumination direction is allowed.");
+					throw std::exception("Error: only one defocus distance per row is allowed in the case of output complex amplitudes or 3D potential calculations.");
 		}
 		vector<string> voutfilenamesTot;
 		FileNames2(vndefocus, outfilename, voutfilenamesTot); // create "2D array" of output filenames

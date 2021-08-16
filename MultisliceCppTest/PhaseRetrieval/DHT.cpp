@@ -41,10 +41,11 @@ int main(int argc, char* argv[])
 	{
 		printf("\nStarting Differential Holographic Tomography program ...");
 		constexpr double dAtomWidth = 1.0; // "average width" of the potential distribution around a single atom in A, this may change in the future
+		constexpr double dGamma = 0.1; // scaling parameter required in order to bring the maximum contrast for the realistic potentials to the theoretical Gaussian case 
 		vector<Pair> v2angles;
 		vector<vector <Pair> > vvdefocus;
 		vector<Pair> v2shifts;
-		vector<double> vastigm;
+		vector<Pair> vastigm;
 
 		//************************************ read input parameters from file
 		// read input parameter file
@@ -52,6 +53,7 @@ int main(int argc, char* argv[])
 		
 		string sInputParamFile("PhaseRetrieval.txt");
 		if (argc > 1) sInputParamFile = argv[1];
+
 		FILE* ff0 = fopen(sInputParamFile.c_str(), "rt");
 		if (!ff0) throw std::exception(string("Error: cannot open parameter file " + sInputParamFile + ".").c_str());
 		else printf("\nReading input parameter file %s ...", sInputParamFile.c_str());
@@ -75,12 +77,12 @@ int main(int argc, char* argv[])
 		if (GetFileExtension(string(cparam)) == string(".TXT"))
 			ReadDefocusParamsFile(cparam, v2angles, vvdefocus, bVerboseOutput);
 		else
-			if (GetFileExtension(string(cparam)) == string(".RELION"))
+			if (GetFileExtension(string(cparam)) == string(".RELIONNEW"))
 			{
 				ReadRelionDefocusParamsFile(cparam, v2angles, vvdefocus, vastigm, v2shifts, bVerboseOutput);
 				bRelion = true;
 			}
-			else throw std::exception("Error: unrecognised filename extension in parameter 1 of the input parameter file.");
+			else throw std::exception("Error: unrecognised filename extension in parameter 2 of the input parameter file.");
 		index_t nangles = v2angles.size(); // number of rotation steps 
 		vector<index_t> vndefocus(nangles); // vector of numbers of defocus planes at different illumination angles
 		for (index_t i = 0; i < nangles; i++) vndefocus[i] = vvdefocus[i].size();
@@ -131,16 +133,14 @@ int main(int argc, char* argv[])
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 5. Xmin Xmax Ymin Ymax in Angstroms (for TIFF and RAW input files only)
 		double xlo, xhi, xst; // physical x-bounds in angstroms
 		double ylo, yhi, yst; // physical y-bounds in angstroms
+		if (sscanf(cline, "%s %s %s %s %s", ctitle, cparam, cparam1, cparam2, cparam3) != 5)
+			throw std::exception("Error reading Xmin, Xmax, Ymin or Ymax from input parameter file.");
+		xlo = atof(cparam);
+		xhi = atof(cparam1);
+		ylo = atof(cparam2);
+		yhi = atof(cparam3);
 		if (bTIFFinput || bRAWinput)
-		{
-			if (sscanf(cline, "%s %s %s %s %s", ctitle, cparam, cparam1, cparam2, cparam3) != 5) 
-				throw std::exception("Error reading Xmin, Xmax, Ymin or Ymax from input parameter file.");
-			xlo = atof(cparam);
-			xhi = atof(cparam1);
-			ylo = atof(cparam2);
-			yhi = atof(cparam3);
 			printf("\nPhysical boundaries of input images: Xmin = %g, Xmax = %g, Ymin = %g, Ymax = %g (Angstroms)", xlo, xhi, ylo, yhi);
-		}
 				
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 6.Input data normalization factors f1 f2 (input -> (input / f1) + f2)
 		double dNormFactor1(1.0), dNormFactor2(0.0);
@@ -185,7 +185,7 @@ int main(int argc, char* argv[])
 		Cs3 *= 1.e+7; // mm --> Angstroms
 		Cs5 *= 1.e+7; // mm --> Angstroms
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10.Phase retrieval method: 1 = IWFR, 2 = CTFL2, 3 = MinLogAmp, 4 = PhaseB7
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10.Phase retrieval method: 1 = IWFR, 2 = CTFL2, 3 = Mi05LogAmp, 4 = ConjPhaseGausBeam
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading phase retrieval method from input parameter file.");
 		int nPhaseRetrieval = atoi(cparam);
 		
@@ -206,12 +206,10 @@ int main(int argc, char* argv[])
 		if (itermax < 1)
 			throw std::exception("Error: the maximal number of iterations should be >= 1.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13. Minimal phase reconstruction error(IWFR) or Tikhonov regularization parameter alpha(CTFL2)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13. Minimal phase reconstruction error(IWFR), Tikhonov regularization parameter alpha(CTFL2) or multiplicative factor (Min05LogAmp)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading minimal phase reconstruction error/regulariztion parameter from input parameter file.");
 		double epsilon = atof(cparam);
-		printf("\nMinimal phase reconstruciton error (IWFR) or Tikhonov regularization parameter (CTFL2) = %g", epsilon);
-		if (epsilon < 0)
-			throw std::exception("Error: minimal phase reconstruction error must be non-negative.");
+		printf("\nMinimal phase reconstruciton error (IWFR), Tikhonov regularization parameter (CTFL2) or multiplicative factor (Min05LogAmp, ConjPhaseGausBeam) = %g", epsilon);
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14. Output defocus distances min max and step in Angstroms
 		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::exception("Error reading output defocus distances from input parameter file.");
@@ -219,6 +217,14 @@ int main(int argc, char* argv[])
 		double zhi = atof(cparam1); // maximum output defocus in Angstroms - !!! will be corrected with dzextra below 
 		double zst = abs(atof(cparam2)); // output defocus step in Angstroms   
 		if (zlo > zhi) std::swap(zlo, zhi);
+		if (bRelion)
+		{
+			//!!! in the case of Relion defocus file, we presume that the defocus distances are given from the centre of the molecule,
+			// and we adjust these defocus distances so that they would be measured from the "exit plane", as in the case of .txt defocus files
+			double halfthick = 0.5 * (zhi - zlo);
+			for (int i = 0; i < vvdefocus.size(); i++) vvdefocus[i][0].b -= halfthick;
+		}
+
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); //15. Extra defocus for 3D reconstruction in_Angstroms
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading extra defocus for 3D reconstruction parameter from input parameter file.");
@@ -237,7 +243,22 @@ int main(int argc, char* argv[])
 		printf("\nThere are %d output defocus plane positions", noutdefocus);
 		for (index_t n = 0; n < noutdefocus; n++) voutdefocus[n] = zlodz + zst * n;
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 16. 3D Laplacian filter mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 16.Input file (or_NONE) with rotation angles enforcing symmetry
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading file name with rotation angles enforcing symmetry from input parameter file.");
+		printf("\nReading symmetry enforcing file %s ...", cparam);
+		index_t nanglesSym{ 0 };
+		vector<Pair> v2anglesSym;
+		vector<vector <Pair> > vvdefocusSym;
+		if (GetFileExtension(string(cparam)) == string(".TXT"))
+		{
+			ReadDefocusParamsFile(cparam, v2anglesSym, vvdefocusSym, bVerboseOutput);
+			nanglesSym = v2anglesSym.size(); // number of rotation steps 
+		}
+		else
+			if (string(cparam) != string("NONE")) 
+				throw std::exception("Error: filename extension in parameter 16 must be .txt or the parameter should be NONE.");
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. 3D Laplacian filter mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading 3D Laplacian filter mode from input parameter file.");
 		int imodeInvLaplace = atoi(cparam);
 		switch (imodeInvLaplace)
@@ -248,21 +269,18 @@ int main(int argc, char* argv[])
 		case 1:
 			printf("\n3D Laplacian filter will be applied.");
 			break;
-		case 2:
-			printf("\nThe program will apply the 3D Laplacian filter to the 3D potential imported from the input files.");
-			break;
 		default:
 			throw std::exception("Error: unknown value for 3D Laplacian filter mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Regularization parameter for inverse 3D Laplacian
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 18. Regularization parameter for inverse 3D Laplacian
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading regularization parameter for inverse 3D Laplacian from input parameter file.");
 		double alpha = atof(cparam);
 		printf("\nRegularization parameter for inverse 3D Laplacian = %g", alpha);
-		if (alpha < 0 && (imodeInvLaplace == 1 || imodeInvLaplace == 2))
+		if (imodeInvLaplace && alpha < 0)
 			throw std::exception("Error: regularization parameter for 3D Laplacian filter must be non-negative.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 18. Low-pass filter width in Angstroms, background subtraction value and lower threshold level in Volts
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 19. Low-pass filter width in Angstroms, background subtraction value and lower threshold level in Volts
 		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::exception("Error reading low-pass filter width, background subtraction value and lower threshold level from input parameter file.");
 		double dlpfiltersize = atof(cparam);
 		double dBackground = atof(cparam1);
@@ -271,7 +289,7 @@ int main(int argc, char* argv[])
 		printf("\nBackground subtraction value for 3D potential = %g (Volts)", dBackground);
 		printf("\nLower threshold level for 3D potential = %g (Volts)", dThreshold);
 		
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 19. Multislice reprojection of the 3D electrostatic potential mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 20. Multislice reprojection of the 3D electrostatic potential mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading reprojectin of 3D potential mode from input parameter file.");
 		int imodeReproj = atoi(cparam);
 		switch (imodeReproj)
@@ -282,21 +300,18 @@ int main(int argc, char* argv[])
 		case 1:
 			printf("\nMultislice reprojection of the 3D electrostatic potential will be applied.");
 			break;
-		case 2:
-			printf("\nThe program will apply multislice reprojection of the 3D electrostatic potential imported from the input files.");
-			break;
 		default:
 			throw std::exception("Error: unknown value for the multislice reprojection mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 20. Slice thickness for multislice reprojection in Angstroms
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 21. Slice thickness for multislice reprojection in Angstroms
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading slice thickness for multislice reprojection from input parameter file.");
 		double sliceTh = atof(cparam);
 		printf("\nSlice thickness for multislice reprojection = %g (Angstroms)", sliceTh);
-		if (sliceTh < (4.0 * zst) && (imodeReproj == 1 || imodeReproj == 2))
+		if (imodeReproj && sliceTh < (4.0 * zst))
 			throw std::exception("Error: slice thickness for multislice reprojection must be 4 x z_step or larger.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 21. Peak localization mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 22. Peak localization mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading peak localization mode from input parameter file.");
 		int imodePeaks = atoi(cparam);
 		switch (imodePeaks)
@@ -307,24 +322,21 @@ int main(int argc, char* argv[])
 		case 1:
 			printf("\nPeak localization in the 3D electrostatic potential will be applied.");
 			break;
-		case 2:
-			printf("\nThe program will apply peak localization in the 3D electrostatic potential imported from the input files.");
-			break;
 		default:
 			throw std::exception("Error: unknown value for the peak localization mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 22. Cube side length for peak localization (in_Angstroms)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 23. Cube side length for peak localization (in_Angstroms)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading cube side length for peak localization from input parameter file.");
 		double datomsize = atof(cparam);
 		printf("\nCube side length for peak localization = %g (Angstroms)", datomsize);
-		if (int(datomsize / zst + 0.5) < 2 && (imodePeaks == 1 || imodePeaks == 2))
+		if (imodePeaks && int(datomsize / zst + 0.5) < 2)
 			throw std::exception("Error: cubic box side length for peak localization must be 2 x z_step or larger.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 23. Output file name base in GRD or TIFF format
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 24. Output file name base in GRD or TIFF format
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading output file name base from input parameter file.");
 		string filenamebaseOut = cparam;
-		printf("\nFile name base for 3D_potential = %s", filenamebaseOut.c_str());
+		printf("\nFile name base for 3D potential = %s", filenamebaseOut.c_str());
 		if (!std::filesystem::exists(GetPathFromFilename(filenamebaseOut)))
 			throw std::exception("Error: the specified file folder for 3D potential does not seem to exist.");
 		bool bTIFFoutput;
@@ -332,10 +344,23 @@ int main(int argc, char* argv[])
 		else if (GetFileExtension(filenamebaseOut) == string(".GRD")) bTIFFoutput = false;
 		else throw std::exception("Error: output filename extension must be TIF ot GRD.");
 
-		if (imodeInvLaplace == 2 || imodeReproj == 2 || imodePeaks == 2) // only read in pre-caculated 3D potential from "output" files and filter or reproject it
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 25. Import and reprocess existing 3D_potential files
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading import and reprocess existing 3D potential files switch from input parameter file.");
+		int imode3DPotential = atoi(cparam);
+		switch (imode3DPotential)
 		{
-			if (imodeInvLaplace == 1 || imodeReproj == 1 || imodePeaks == 1)
-				throw std::exception("Error: inconsistency between the Laplacian filter, reporojection and peak localization mode parameters.");
+		case 0:
+			printf("\nThis program will reconstruct 3D potential from defocused images and save it in output files.");
+			break;
+		case 1:
+			printf("\nThis program will import existing 3D potential from files and reprocess it.");
+			break;
+		default:
+			throw std::exception("Error: unknown value of import and reprocess existing 3D potential files switch in input parameter file.");
+		}
+	
+		if (imode3DPotential) // only read in pre-caculated 3D potential from "output" files and reprocess them
+		{
 			if (GetFileExtension(filenamebaseOut) == string(".TIFF") || GetFileExtension(filenamebaseOut) == string(".TIF"))
 			{
 				bTIFFinput = true; bRAWinput = false;
@@ -349,9 +374,17 @@ int main(int argc, char* argv[])
 				bTIFFinput = false; bRAWinput = true;
 			}
 			else throw std::exception("Error: input filename extension (in this mode - it is taken from the output filename template) must be TIF, GRD, GRC or RAW.");
+
+			if (bTIFFinput || bRAWinput)
+				printf("\nPhysical boundaries of pre-calculated potential slices: Xmin = %g, Xmax = %g, Ymin = %g, Ymax = %g (Angstroms)", xlo, xhi, ylo, yhi);
+		}
+		else
+		{
+			if ((nPhaseRetrieval == 1 || nPhaseRetrieval == 2) && epsilon < 0)
+				throw std::exception("Error: minimal phase / regulalization parameter must be non-negative.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 24. Folder name for auxiliary files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 26. Folder name for auxiliary files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading folder name for auxiliary files from input parameter file.");
 		string folderAux = cparam;
 		printf("\nFolder for auxiliary file output = %s", folderAux.c_str());
@@ -362,7 +395,7 @@ int main(int argc, char* argv[])
 		if(!std::filesystem::exists(folderAux))
 			throw std::exception("Error: the specified auxiliary file folder does not seem to exist.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 25. Number of parallel threads
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Number of parallel threads
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading number of parallel threads from input parameter file.");
 		int nThreads = atoi(cparam);
 		printf("\nNumber of parallel threads = %d", nThreads);
@@ -378,7 +411,7 @@ int main(int argc, char* argv[])
 		
 		vector<string> vinfilenamesTot, vinfilenames1Tot; // input filenames for the defocused intensities or complex amplitudes
 		vector< vector<string> > vvinfilenames(nangles), vvinfilenames1(nangles); // same input filenames for the defocused series in the form of vector of vectors
-		if (imodeInvLaplace == 2 || imodeReproj == 2 || imodePeaks == 2) // only read in pre-caculated 3D potential from "output" files and filter or reproject it
+		if (imode3DPotential) // only read in pre-caculated 3D potential from "output" files and reprocess them
 		{
 			printf("\nInput file name base for pre-existing 3D potential = %s", filenamebaseOut.c_str());
 			FileNames(1, noutdefocus, filenamebaseOut, vinfilenamesTot); // create 1D array of input filenames to read the input 2D slices of a previously reconstructed 3D object
@@ -403,7 +436,7 @@ int main(int argc, char* argv[])
 
 		string filenamebaseOutNew("BAD_STRING"), filenamebaseOutCAmp("BAD_STRING"), filenamebaseOutDefocCAmp("BAD_STRING"); // don't use it, unless it is redefined later
 		vector<string> voutfilenamesTot; // output filenames for the reconstructed 3D potential
-		if (imodeInvLaplace == 2 || imodeReproj == 2 || imodePeaks == 2) // output the the renormalized 3D potential
+		if (imode3DPotential) // output the the renormalized 3D potential
 		{
 			std::filesystem::path apath(filenamebaseOut);
 			filenamebaseOutNew = apath.filename().string();
@@ -414,12 +447,11 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			printf("\nOutput file name base for 3D potential = %s", filenamebaseOut.c_str());
 			FileNames(1, noutdefocus, filenamebaseOut, voutfilenamesTot); // create 1D array of output filenames to save 2D slices of the reconstructed 3D object
 		}
 
 		vector<string> voutfilenamesPeaksTot; // output filenames for the peak-localized reconstructed 3D potential
-		if (imodePeaks == 1 || imodePeaks == 2) // output filenames for the peak-localized 3D potential
+		if (imodePeaks) // output filenames for the peak-localized 3D potential
 		{
 			std::filesystem::path apath(filenamebaseOut);
 			filenamebaseOutNew = apath.filename().string();
@@ -431,7 +463,7 @@ int main(int argc, char* argv[])
 
 		vector<string> voutfilenamesTotCAmp; // output filenames the reprojected defocused complex amplitudes
 		vector< vector<string> > vvoutfilenamesCAmp(nangles);  // same output filenames for the reprojected defocused complex amplitudes in the form of vector of vectors
-		if (imodeReproj == 1 || imodeReproj == 2) // create filenames for saving the reprojected intensities, based on the names of input defocused intensities
+		if (imodeReproj) // create filenames for saving the reprojected intensities, based on the names of input defocused intensities
 		{
 			std::filesystem::path apath(filenamebaseIn);
 			filenamebaseOutCAmp = apath.filename().string();
@@ -441,7 +473,7 @@ int main(int argc, char* argv[])
 			FileNames2(vndefocus, filenamebaseOutCAmp, voutfilenamesTotCAmp); // create "2D array" of output filenames for reprojected complex amplitudes
 			
 			// Also copy the filenames of the input defocused intensities for the purpose of comparing with the reprojected intensities
-			// note that in the case imodeInvLaplace == 2 or imodeReproj == 2 or imodePeaks == 2, these files are different from input images (which come from the potential)
+			// note that in the case imode3DPotential != 0 these files are different from input images (which come from the potential)
 			printf("\nDefocus series file name base for comparing with re-projected images = %s", filenamebaseIn.c_str());
 			FileNames2(vndefocus, filenamebaseIn, vinfilenames1Tot); // create "total 2D array" of input filenames
 
@@ -482,7 +514,7 @@ int main(int argc, char* argv[])
 		std::unique_ptr<IXAHead> pHead(nullptr);
 		XArray3D<double> K3out; // big 3D reconstructed array (needs to fit into RAM alongside with with everything else)
 
-		if (imodeInvLaplace != 2 && imodeReproj != 2 && imodePeaks != 2) // do phase retrieval and backpropagation prior to 3D filtering or reprojection and output
+		if (!imode3DPotential) // do phase retrieval and backpropagation prior to 3D filtering or reprojection and output
 		{
 			printf("\n\nPerforming phase retrieval and backpropagation into the 3D volume ...");
 
@@ -536,28 +568,26 @@ int main(int argc, char* argv[])
 					if (abs(xst - yst) > 0.1 * xst / nx || abs(xst - zst) > 0.1 * xst / nx)	throw std::exception("Error: the 3D reconstructed object is supposed to have cubic voxels");
 					if (vdefocus[0].a != 0 || bRelion && (v2shifts[na].a != 0 || v2shifts[na].b != 0)) // rotate around Z'', then shift along XY, if needed
 					{
-						XArray2D<double> ampRe0, ampIm0, ampRe, ampIm;
-						Re(campOut, ampRe0); Im(campOut, ampIm0);
-						double averRe0 = ampRe0.NormAverEdge(5);
-						double averIm0 = ampIm0.NormAverEdge(5);
+						XArray2D<double> ampRe{ Re(campOut) };
+						XArray2D<double> ampIm{ Im(campOut) };
+						double averRe = ampRe.NormAverEdge(5);
+						double averIm = ampIm.NormAverEdge(5);
 						// shift along X and/or Y back to the unshifted position
 						if (bRelion && (v2shifts[na].a != 0 || v2shifts[na].b != 0))
 						{
-							xar::XArray2DMove<double> xamoveRe(ampRe0);
-							xamoveRe.Move((long)floor(-v2shifts[na].b / yst + 0.5), (long)floor(-v2shifts[na].a / xst + 0.5), averRe0);
-							xar::XArray2DMove<double> xamoveIm(ampIm0);
-							xamoveIm.Move((long)floor(-v2shifts[na].b / yst + 0.5), (long)floor(-v2shifts[na].a / xst + 0.5), averIm0);
+							xar::XArray2DMove<double> xamoveRe(ampRe);
+							xamoveRe.Move((long)floor(-v2shifts[na].b / yst + 0.5), (long)floor(-v2shifts[na].a / xst + 0.5), averRe);
+							xar::XArray2DMove<double> xamoveIm(ampIm);
+							xamoveIm.Move((long)floor(-v2shifts[na].b / yst + 0.5), (long)floor(-v2shifts[na].a / xst + 0.5), averIm);
 						}
 						// rotate input defocused complex amplitude around Z'' back to zero angle
 						if (vdefocus[0].a != 0)
 						{
-							XArray2DSpln<double> xaSplnRe(ampRe0), xaSplnIm(ampIm0);
-							xaSplnRe.Rotate(ampRe, -vdefocus[0].a, 0.5 * (yhi + ylo), 0.5 * (xhi + xlo), averRe0); // expecting uniform background
-							xaSplnIm.Rotate(ampIm, -vdefocus[0].a, 0.5 * (yhi + ylo), 0.5 * (xhi + xlo), averIm0); // expecting uniform background
-							MakeComplex(ampRe, ampIm, campOut, false);
+							XArray2DSpln<double> xaSplnRe(ampRe), xaSplnIm(ampIm);
+							ampRe = xaSplnRe.Rotate(-vdefocus[0].a, 0.5 * (yhi + ylo), 0.5 * (xhi + xlo), averRe); // expecting uniform background
+							ampIm = xaSplnIm.Rotate(-vdefocus[0].a, 0.5 * (yhi + ylo), 0.5 * (xhi + xlo), averIm); // expecting uniform background
 						}
-						else
-							MakeComplex(ampRe0, ampIm0, campOut, false);
+						campOut = MakeComplex(ampRe, ampIm, false);
 
 					}
 
@@ -681,7 +711,7 @@ int main(int argc, char* argv[])
 						ampOut = vint0[0]; // use this before the call to xa_iwfr.CTFL2 spoils all vint0 images
 						ampOut ^= 0.5; // preserve the amplitude at the zeros distance for reuse after phase retrieval
 						double alphaCTF2 = epsilon; // alphaCTF2 will be changed by the call to CTFL2()
-						xa_iwfr.CTFL2(vint0, fiOut, vdefocusdist, k2maxo, Cs3, Cs5, alphaCTF2);
+						fiOut = xa_iwfr.CTFL2(vint0, vdefocusdist, k2maxo, Cs3, Cs5, alphaCTF2);
 						if (bVerboseOutput) printf("\nMinimal [sum(CTF_n^2)]^2 in denominator = %g", alphaCTF2);
 						MakeComplex(ampOut, fiOut, campOut, true);
 					}
@@ -689,22 +719,38 @@ int main(int argc, char* argv[])
 					case 3:
 					{
 						zout = vdefocus[0].b;
+						double zoutSample = zout + 0.5 * (zhidz - zlodz); // we want to take into account the sample thickness here
+						double sigma = (dAtomWidth / 2.355); // std of the Gaussian fit for the potential of one atom
+						double NF = zoutSample != 0 ? tPI * sigma *sigma / (wl * zoutSample) : 1.0;
 						XArray2D<double> fiOut, ampOut;
 						ampOut = vint0[0]; ampOut ^= 0.5;
 						XA_IWFR<double> xa_iwfr;
-						if (bVerboseOutput) printf("\nPerforming -0.5*Log(I) phase retrieval ...");
-						xa_iwfr.MinLogAmp(vint0[0], fiOut);
+						if (bVerboseOutput) 
+						{
+							//printf("\nPerforming Fact * {-0.5 * NF * (Intensity / I0 - 1)} phase retrieval ...");
+							printf("\nPerforming Fact * {-0.5 * (Intensity / I0 - 1)} phase retrieval ...");
+							printf("\nFresnel number = %g", NF);
+						}
+						//fiOut = xa_iwfr.Min05LogAmp(vint0[0], epsilon * NF);
+						fiOut = xa_iwfr.Min05LogAmp(vint0[0], epsilon);
 						MakeComplex(ampOut, fiOut, campOut, true);
 					}
 					break;
 					case 4:
 					{
 						zout = vdefocus[0].b;
+						double zoutSample = zout + 0.5 * (zhidz - zlodz); // we want to take into account the sample thickness here
+						double sigma = (dAtomWidth / 2.355); // std of the Gaussian fit for the potential of one atom
+						double NF = zoutSample != 0 ? tPI * sigma * sigma / (wl * zoutSample) : 1.0;
 						XArray2D<double> fiOut, ampOut;
 						ampOut = vint0[0]; ampOut ^= 0.5;
 						XA_IWFR<double> xa_iwfr;
-						if (bVerboseOutput) printf("\nPerforming -0.5*sqrt(Kmax^2-K^2) phase retrieval ...");
-						xa_iwfr.PhaseB7(vint0[0], fiOut);
+						if (bVerboseOutput)
+						{
+							printf("\nPerforming Fact * {NF^(-1) - sqrt[NF^(-2) + (Intensity / I0) - 1]} phase retrieval ...");
+							printf("\nFresnel number = %g", NF);
+						}
+						fiOut = xa_iwfr.ConjPhaseGausBeam(vint0[0], epsilon * NF);
 						MakeComplex(ampOut, fiOut, campOut, true);
 					}
 					break;
@@ -723,7 +769,8 @@ int main(int argc, char* argv[])
 				#pragma omp parallel for
 				for (int n = 0; n < noutdefocus; n++)
 				{
-					int iSign = voutdefocus[n] < zout ? iSign = -1 : iSign = 1;
+					//int iSign = voutdefocus[n] < zout ? iSign = -1 : iSign = 1;
+					int iSign =  -1; // we always want to compensate the known aberrations
 					try
 					{
 						// propagate to the output defocused plane
@@ -731,7 +778,7 @@ int main(int argc, char* argv[])
 						xar::XArray2DFFT<double> xafft(vcamp[n]);
 
 						if (bRelion)
-							xafft.FresnelA(voutdefocus[n] - vastigm[na] - zout, voutdefocus[n] + vastigm[na] - zout, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
+							xafft.FresnelA(voutdefocus[n] - zout, iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
 						else
 							xafft.Fresnel(voutdefocus[n] - zout, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
 					}
@@ -756,7 +803,7 @@ int main(int argc, char* argv[])
 					xxx = xlo + xst * i - xc;
 					x_sinangleY[i] = xxx * sinangleY;
 					x_cosangleY[i] = xxx * cosangleY;
-				}
+				} 
 
 				double yyy;
 				vector<double> y_sinangleZ(ny), y_cosangleZ(ny);
@@ -796,7 +843,7 @@ int main(int argc, char* argv[])
 						{
 							// inverse rotation around Y' axis
 							zzz = zc + z_cosangleY[n] + x_sinangleY[i]; // z coordinate after the inverse rotation around Y'
-							dz1 = abs(zzz - zlodz) / zst;
+							dz1 = (zzz - zlodz) / zst;
 							nn = (int)dz1; if (nn < 0 || nn > noutdefocus2) continue;
 							dz1 -= nn; dz0 = 1.0 - dz1;
 
@@ -809,16 +856,16 @@ int main(int argc, char* argv[])
 
 								// inverse rotation around Z axis
 								xxx = xc + y_sinangleZ[j] + xx_cosangleZ; // x coordinate after the inverse rotation around Z
-								dx1 = abs(xxx - xlo) / xst;
+								dx1 = (xxx - xlo) / xst;
 								ii = (int)dx1; if (ii < 0 || ii > nx2) continue;
 								dx1 -= ii; dx0 = 1.0 - dx1;
 
 								yyy = yc + y_cosangleZ[j] - xx_sinangleZ; // y coordinate after the inverse rotation around Z
-								dy1 = abs(yyy - ylo) / yst;
+								dy1 = (yyy - ylo) / yst;
 								jj = (int)dy1; if (jj < 0 || jj > ny2) continue;
 								dy1 -= jj; dy0 = 1.0 - dy1;
 
-								dK = 1.0 - std::norm(vcamp[n][j][i]);
+								dK = 1.0 - std::norm(vcamp[n][j][i]); // dK = 1 - I(x,y,z)
 								dz0K = dz0 * dK;
 								dz1K = dz1 * dK;
 								K3out[nn][jj][ii] += dx0 * dy0 * dz0K;
@@ -835,18 +882,19 @@ int main(int argc, char* argv[])
 					catch (std::exception& E)
 					{
 						printf("\n\n!!!Exception: %s\n", E.what());
-						bAbort = true;
+						bAbort = true;  
 					}
 				}
 				if (bAbort) throw std::runtime_error("at least one thread has thrown an exception.");
 			} // end of cycle over illumination angles
 
 			// normalization of the reconstructed 3D distribution
-			double dnorm = -2.0 * EE / (dzextra * dAtomWidth * nangles); // follows from eq.(11!) in our second Ultramicroscopy paper (except for the minus sign)
-			if (imodeInvLaplace == 0) dnorm *= dAtomWidth * dAtomWidth / (4.0 * PI * PI); // we select the renormalization effect that the inverse Laplacian would have had on the frequency 1 / dAtomWidth.
+			double dnorm = EE * dGamma / nangles / dAtomWidth; // 1/nangles plays the role of (1/8*PI) in the theoretical formula 
+			if (imodeInvLaplace) { if (dzextra != 0) dnorm /= dzextra; } // old DHT reconstruction formula with the inverse Laplacian
+			else dnorm *= -wl / PI; // new DHT reconstruction formula without the inverse Laplacian
 			K3out *= dnorm;
 
-		} // end of case if imodeInvLaplace != 2 && imodePeaks != 2 && imodeReproj != 2
+		} // end of case if imode3DPotential == 0
 		else // read in pre-existing 3D distribution of the electrostatic potential
 		{
 			printf("\n\nReading pre-existing 3D distribution of the electrostatic potential from files ...");
@@ -917,13 +965,36 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		// apply the regularized inverse 3D Laplacian
-		if (imodeInvLaplace == 1 || imodeInvLaplace == 2)
+		// enforce known symmetries
+		if (nanglesSym > 0)
+		{
+			printf("\nEnforcing known symmetries of the reconstructed 3D object ...");
+			XArray3DSpln<double> xa3spln(K3out);
+			XArray3D<double> xaResult3D, xaResult3Dsum(K3out);
+			for (int na = 1; na < nanglesSym; na++)
+			{
+				printf("\nRotating around Z by %g (deg), around Y' by %g (deg) and around Z'' by %g (deg) ...", v2anglesSym[na].a, v2anglesSym[na].b, vvdefocusSym[na][0].a);
+				xa3spln.Rotate3(xaResult3D, v2anglesSym[na].a * PI180, v2anglesSym[na].b * PI180, vvdefocusSym[na][0].a * PI180);
+				xaResult3Dsum += xaResult3D;
+			}
+			xaResult3Dsum /= double(nanglesSym);
+			K3out = xaResult3Dsum;
+		}
+
+
+		// apply the regularized inverse 3D (-Laplacian)
+		if (imodeInvLaplace)
 		{
 			printf("\nInverse Laplace filtering the reconstructed 3D object ...");
-			if (imodeInvLaplace == 2) K3out *= (4.0 * PI * PI) / (dAtomWidth * dAtomWidth); // compensate for the renormalization that was applied when it was imodeInvLaplace == 0
+			if (imode3DPotential)
+			{
+				double dnorm = -PI / wl; // compensate for the renormalization that was supposedly applied earlier, when it was imodeInvLaplace == 0
+				if (dzextra != 0) dnorm /= dzextra; // apply the extra normalization corresposponding to the inverse Laplacian case, on top of EE / nangles / dAtomWidth
+				K3out *= dnorm;
+			}
+			//else ;// proper normalization has been applied already - see above
 			Fftwd3drc fft3(noutdefocus, int(ny), int(nx));
-			fft3.InverseLaplacian(K3out, alpha);
+			fft3.InverseMLaplacian(K3out, alpha);
 		}
 
 		// high-pass filtering, background subtraction and thresholding of the reconstructed 3D distribution
@@ -943,7 +1014,7 @@ int main(int argc, char* argv[])
 		else XArData::WriteFileStackGRD(K3out, voutfilenamesTot, eGRDBIN);
 
 		// multislice reprojection
-		if (imodeReproj == 1 || imodeReproj == 2)
+		if (imodeReproj)
 		{
 			printf("\nPerforming forward re-propagation through the 3D distribution of the electrostatic potential ...");
 			double yc = (ylo + yhi) / 2.0, xc = (xlo + xhi) / 2.0;
@@ -986,40 +1057,35 @@ int main(int argc, char* argv[])
 					spln3d.Multislice_eV(campOut, angleZ, angleY, sliceTh, k2maxo);
 
 					// propagate to defocuse planes, rotate around the illumination axis and save the defocused intensities
-					XArray2D<double > vint0n, K0n, vint1n, K1n, ampRe0, ampIm0, ampRe, ampIm;
+					XArray2D<double > vint0n, K0n, vint1n, K1n, ampRe, ampIm;
 					for (int n = 0; n < vndefocus[na]; n++)
 					{
 						XArray2D<dcomplex> campOut1(campOut);
 						xar::XArray2DFFT<double> xafft(campOut1);
-						int iSign = vdefocus[n].b < 0 ? iSign = -1 : iSign = 1;
+						//int iSign = vdefocus[n].b < 0 ? iSign = -1 : iSign = 1;
+						int iSign = +1; // now we want to reproduce(!) the known aberrations, rather than compensate them
 						if (bRelion)
-							xafft.FresnelA(vdefocus[n].b + vastigm[na], vdefocus[n].b - vastigm[na], false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to the current defocus distance
+							xafft.FresnelA(vdefocus[n].b, iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to the current defocus distance
 						else
 							xafft.Fresnel(vdefocus[n].b, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to the current defocus distance
 						if (vdefocus[n].a != 0 || bRelion && (v2shifts[na].a != 0 || v2shifts[na].b != 0)) // rotate around Z'', then shift along XY, if needed
 						{
-							Re(campOut1, ampRe0); Im(campOut1, ampIm0);
-							double averRe0 = ampRe0.NormAverEdge(5);
-							double averIm0 = ampIm0.NormAverEdge(5);
+							Re(campOut1, ampRe); Im(campOut1, ampIm);
+							double averRe = ampRe.NormAverEdge(5);
+							double averIm = ampIm.NormAverEdge(5);
 							// rotate input defocused complex amplitude around Z''
 							if (vdefocus[0].a != 0)
 							{
-								XArray2DSpln<double> xaSplnRe(ampRe0), xaSplnIm(ampIm0);
-								xaSplnRe.Rotate(ampRe, vdefocus[n].a, yc, xc, averRe0); // expecting uniform background
-								xaSplnIm.Rotate(ampIm, vdefocus[n].a, yc, xc, averIm0); // expecting uniform background
-							}
-							else
-							{
-								ampRe = ampRe0;
-								ampIm = ampIm0;
+								XArray2DSpln<double> xaSplnRe(ampRe), xaSplnIm(ampIm);
+								ampRe = xaSplnRe.Rotate(vdefocus[n].a, yc, xc, averRe); // expecting uniform background
+								ampIm = xaSplnIm.Rotate(vdefocus[n].a, yc, xc, averIm); // expecting uniform background
 							}
 							// shift along X and/or Y
 							if (bRelion && (v2shifts[na].a != 0 || v2shifts[na].b != 0))
 							{
-								xar::XArray2DMove<double> xamoveRe(ampRe);
-								xamoveRe.Move((long)floor(v2shifts[na].b / yst + 0.5), (long)floor(v2shifts[na].a / xst + 0.5), averRe0);
-								xar::XArray2DMove<double> xamoveIm(ampIm);
-								xamoveIm.Move((long)floor(v2shifts[na].b / yst + 0.5), (long)floor(v2shifts[na].a / xst + 0.5), averIm0);
+								xar::XArray2DMove<double> xamoveRe(ampRe), xamoveIm(ampIm);
+								xamoveRe.Move((long)floor(v2shifts[na].b / yst + 0.5), (long)floor(v2shifts[na].a / xst + 0.5), averRe);
+								xamoveIm.Move((long)floor(v2shifts[na].b / yst + 0.5), (long)floor(v2shifts[na].a / xst + 0.5), averIm);
 							}
 							MakeComplex(ampRe, ampIm, campOut1, false);
 						}
@@ -1096,22 +1162,51 @@ int main(int argc, char* argv[])
 		}
 
 		// finding atomic positions
-		if (imodePeaks == 1 || imodePeaks == 2)
+		if (imodePeaks)
 		{
-			int katom = int(datomsize / zst + 0.5), jatom = int(datomsize / yst + 0.5), iatom = int(datomsize / xst + 0.5);
-			double datomsize2 = datomsize * datomsize;
-			int natom(0);
-			vector<int> vimax, vjmax, vkmax, vimax1, vjmax1, vkmax1, Znum1;
-			vector<float> xa, ya, za, xa1, ya1, za1, occ1, wobble1;
-
 			printf("\nSearching for peak positions in the 3D distribution of the electrostatic potential ...");
-			#pragma omp parallel for shared(K3out, natom, vimax, vjmax, vkmax)
-			for (int k = 0; k < noutdefocus - katom; k += katom)
+			
+			// exclude the points located outside the reconstruction volume from the subsequent peak search
+			double xR = (xhi - xlo) / 2.0; // x-radius
+			double yR = (yhi - ylo) / 2.0; // y-radius
+			double zR = (zhidz - zlodz) / 2.0; // z-radius
+			double R2 = (xR * xR + yR * yR + zR * zR) / 3.0;
+			double K3min = K3out.Norm(eNormMin);
+
+			#pragma omp parallel for shared(K3out, K3min, xR, yR, zR, R2, xst, yst, zst)
+			for (int k = 0; k < noutdefocus; k++)
 			{
-				for (int j = 0; j < ny - jatom; j += jatom)
-					for (int i = 0; i < nx - iatom; i += iatom)
+				double zzz = -zR + zst * k;
+				zzz *= zzz;
+				for (int j = 0; j < ny; j++)
+				{
+					double yyy = -yR + yst * j;
+					yyy *= yyy; yyy += zzz;
+					for (int i = 0; i < nx; i++)
 					{
-						double K3max(0.0);
+						double xxx = -xR + xst * i;
+						xxx *= xxx; xxx += yyy;
+						if (xxx > R2) 
+							K3out[k][j][i] = K3min; // mark points outside the reconstruction volume for exclusion from the peak search
+					}
+				}
+			}
+
+			int katom = int(datomsize / zst + 0.5), jatom = int(datomsize / yst + 0.5), iatom = int(datomsize / xst + 0.5);
+			int natom(0);
+			vector<int> vimax, vjmax, vkmax;
+			vector<float> xa, ya, za;
+
+			// search for peaks
+			// NOTE that we exclude one-atomsize-wide vicinity of the outer boundary from the search, as we expect artefacts there
+			#pragma omp parallel for shared(K3out, natom, katom, jatom, iatom, vimax, vjmax, vkmax)
+			for (int k = katom; k < noutdefocus - katom * 2; k += katom)
+			{
+				for (int j = jatom; j < ny - jatom * 2; j += jatom)
+				{
+					for (int i = iatom; i < nx - iatom * 2; i += iatom)
+					{
+						double K3max(0);
 						int kmax(0), jmax(0), imax(0);
 						for (int kk = k; kk < k + katom; kk++)
 							for (int jj = j; jj < j + jatom; jj++)
@@ -1132,6 +1227,7 @@ int main(int argc, char* argv[])
 							vkmax.push_back(kmax);
 						}
 					}
+				}
 			}
 
 			if (natom == 0) printf("WARNING: no peaks have been found!");
@@ -1155,7 +1251,10 @@ int main(int argc, char* argv[])
 				std::qsort(&K3maxPair[0], (size_t)natom, sizeof(Pair2), Pair2comp);
 
 				// exclude the smaller one from each pair of peak positions that are located closer than datomsize to each other (e.g. in adjacent corners of neigbouring cubes)
-				printf("\nEliminating adjacent peaks in the 3D distribution of the electrostatic potential ...");
+				double datomsize2 = datomsize * datomsize;
+				vector<int> vimax1, vjmax1, vkmax1, Znum1;
+				vector<float> xa1, ya1, za1, occ1, wobble1;
+				printf("\nEliminating adjacent peaks in the reconstructed 3D distribution ...");
 				int n, m;
 				for (int nn = natom - 1; nn >= 0; nn--)
 				{

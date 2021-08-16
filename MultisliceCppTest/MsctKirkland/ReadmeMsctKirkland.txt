@@ -239,6 +239,11 @@ each line containing exactly nine entries, separated by white spaces, with the f
 8th entry is the rotation angle "tilt" around the Y' coordinate in radians
 9th entry is the rotation angle "psi" around the Z" coordinate in radians
 A suitable example is given below.
+Note that in the case of .RELION format file, the defocus distances given in this file are considered
+to be measured from the centre of the molecule, while in the case of .TXT format files the defocus
+distances are measured from the "exit" plane of the cube containing the molecule. In order to reconcile
+this, the defocus distances given in .RELION file are adjusted by subtracting one-half of the 
+z-extent of the molecule as found in the input XYZ file given in Parameter 1.
 The text file given in Parameter 14 must be present in the same folder where MsctKirkland.exe is started from,
 or, alternatively, the filename can include a fully specified pathname (OS specific). 
 

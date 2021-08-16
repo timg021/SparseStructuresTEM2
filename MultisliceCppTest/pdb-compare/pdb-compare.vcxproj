@@ -132,6 +132,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)..\TemsimLibrary</AdditionalIncludeDirectories>
+      <OpenMPSupport>false</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -141,10 +142,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\TemsimLibrary\Hungarian.cpp" />
     <ClCompile Include="..\..\TemsimLibrary\pdb.cpp" />
     <ClCompile Include="pdb-compare.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\TemsimLibrary\Hungarian.h" />
     <ClInclude Include="..\..\TemsimLibrary\pdb.h" />
   </ItemGroup>
   <ItemGroup>

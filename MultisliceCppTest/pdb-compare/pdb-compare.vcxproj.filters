@@ -21,9 +21,15 @@
     <ClCompile Include="..\..\TemsimLibrary\pdb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\TemsimLibrary\Hungarian.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\TemsimLibrary\pdb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\TemsimLibrary\Hungarian.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
