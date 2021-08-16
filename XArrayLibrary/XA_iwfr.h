@@ -93,9 +93,12 @@ namespace xar
 	public:
 		//! Retrieves complex wave function from a vector of defocused images
 		void Iwfr(vector<XArray2D<T> >& vint0, XArray2D<std::complex<T> >& campOut, vector<double> vdefocusdist, double zmiddle, double k2maxo, double Cs3, double Cs5, int kmax, double epsilon, bool bVerboseOutput);
-		void CTFL2(vector<XArray2D<T> >& vint0, XArray2D<T>& fiOut, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double& alpha);
-		void PhaseB7(const XArray2D<T>& intIn, XArray2D<T>& fiOut);
-		void MinLogAmp(const XArray2D<T>& intIn, XArray2D<T>& fiOut);
+		//! Retrieves phase from several defocused images using L2 minimization of the CTF function
+		XArray2D<T> CTFL2(vector<XArray2D<T> >& vint0, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double& alpha);
+		//! Returns the conjugated phase retrieved from a single defocused image: -phase = -0.5 * NF * (Intensity / I0 - 1)
+		XArray2D<T> Min05LogAmp(const XArray2D<T>& intIn, double NF = 1.0);
+		//! Returns the conjugated phase retrieved from a single defocused image: -phase = -NF^(-1) + sqrt[NF^(-2) + (Intensity / I0) - 1]
+		XArray2D<T> ConjPhaseGausBeam(const XArray2D<T>& intIn, double NF = 1.0);
 
 	// Overridables
 	public:
@@ -241,17 +244,17 @@ template <class T> void XA_IWFR<T>::Iwfr(vector< XArray2D<T> >& vint0, XArray2D<
 
 //! Retrieves phase from several defocused images using L2 minimization of the CTF function
 // vint0 - input vector of defocused images
-// fiOut - output phase in the plane vdefocusdist[0]
 // vdefocusdist - vector of defocus distances
 // q2max - maximum Fourier frequency (bandpass)
 // Cs3 - third spherical aberration
 // Cs5 - fifth spherical aberration
 // alpha - Tikhonov regularization parameter, on exit it is replaced by 0.1 times the minimal non-zero CTF^4 (as in the denominator of eq.(A6) of paper D. PAGANIN et al, J.Micros. 214 (2004) 51-61)
+// returns output phase in the plane vdefocusdist[0]
 //
 // NOTE: if alpha<=0 is given in the function call, we actually use alpha = 0.1 times the minimal non-zero CTF^4 - see code below.
 // NOTE: it could be useful later to implement a modified version of this algorithm, where the phase is not simply retrieved at defocus[0], which is highly dependent on the image[0], 
 // but instead it would be retrieved at each defocus[n], and then the complex amplitude would be averaged, e.g. at the middle plane, as in IWFR
-template <class T> void XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, XArray2D<T>& fiOut, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double& alpha)
+template <class T> XArray2D<T> XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double& alpha)
 {
 	bool bAper(q2max > 0);
 	int ndefocus = (int)vint0.size();
@@ -323,10 +326,9 @@ template <class T> void XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, XArray2D<
 	}
 
 	// prepare output phase array
-	fiOut.Resize(ny, nx, T(0));
+	XArray2D<T> fiOut(ny, nx, T(0));
 	fiOut.SetHeadPtr(vint0[0].GetHeadPtr()->Clone());
-	XArray2D<std::complex<T> > vcampOut;
-	MakeComplex(fiOut, T(0), vcampOut, false);
+	XArray2D<std::complex<T> > vcampOut{ MakeComplex(fiOut, T(0), false) };
 	T* fiC;
 	fiC = reinterpret_cast<T*>(&(vcampOut.front()));
 	fft.Complex2D((std::complex<T> *) fiC, ny, nx, OouraFft<T>::eDirFwd);
@@ -483,42 +485,52 @@ template <class T> void XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, XArray2D<
 	fft.Complex2D((std::complex<T> *) fiC, ny, nx, OouraFft<T>::eDirInv);
 	T fact = T(1.0) / nxy;
 	for (k = 0; k < nxy2; k++)	fiC[k] *= fact;
-	Re(vcampOut, fiOut);
+	return Re(vcampOut); // relies on move assignment / constructor to avoid copying this object on return
 }
 
 
-//! Retrieves phase from a single defocused image as phase = -0.5 * log(Intensity)
-// vint0 - input defocused image
-// fiOut - output phase in the same plane
-template <class T> void XA_IWFR<T>::MinLogAmp(const XArray2D<T>& intIn, XArray2D<T>& fiOut)
+//! Returns the conjugated phase retrieved from a single defocused image, i.e. returns -0.5 * NF * (Intensity / I0 - 1)
+// intIn - input defocused image
+// NF - Fresnel number NF = lambda * z / (2 * PI * sigma^2) 
+// returns minus output phase (i.e. conjugated phase) in the same plane
+// NOTE: here good results are obtained with "minus" log and positive d
+// Typical value of dMult for light atoms (such as Oxygen) is 0.5, typical value for jheavy atoms (such as Au) is 0.1
+template <class T> XArray2D<T> XA_IWFR<T>::Min05LogAmp(const XArray2D<T>& intIn, double NF)
 {
 	const double* pInt = &(intIn[0][0]);
-	fiOut = intIn;
+	XArray2D<T> fiOut{ intIn };
 	double* pPha = &(fiOut[0][0]);
+	NF *= -0.5;
 	for (index_t i = 0; i < fiOut.size(); i++)
-		//pPha[i] = -0.5 * log(pInt[i]);
-		pPha[i] = 0.5 * (1.0 - pInt[i]);
+		pPha[i] = NF * (pInt[i] - 1.0);
+
+	return fiOut; // relies on move assignment / constructor to avoid copying this object on return
 }
 
 
-//! Retrieves phase from a single defocused image according to eq. (B7) in the our 2nd Ultramicroscopy paper
-// vint0 - input defocused image
-// fiOut - output phase in the same plane
-template <class T> void XA_IWFR<T>::PhaseB7(const XArray2D<T>& intIn, XArray2D<T>& fiOut)
+//! Returns the conjugated phase retrieved from a single defocused image, i.e. returns NF^(-1) - sqrt[NF^(-2) + (Intensity / I0) - 1]
+// intIn - input defocused image
+// NF - Fresnel number NF = lambda * z / (2 * PI * sigma^2) 
+// returns minus output phase (i.e. conjugated phase) in the same plane
+template <class T> XArray2D<T> XA_IWFR<T>::ConjPhaseGausBeam(const XArray2D<T>& intIn, double NF)
 {
+	XArray2D<T> fiOut{ intIn };
+	if (NF == 0)
+	{
+		fiOut.Fill(T(0));
+	}
+	else
+	{
+		double invNF = 1.0 / NF;
+		double invNF2 = invNF * invNF - 1.0;
 		const double* pInt = &(intIn[0][0]);
-		fiOut = intIn;
 		double* pPha = &(fiOut[0][0]);
-		double Kmax2(0.0), dtemp;
-		for (index_t i = 0; i < intIn.size(); i++)
-		{
-			dtemp = 1.0 - pInt[i];
-			dtemp *= dtemp;
-			pPha[i] = dtemp;
-			if (dtemp > Kmax2) Kmax2 = dtemp;
-		}
+
 		for (index_t i = 0; i < fiOut.size(); i++)
-			pPha[i] = -0.5 * sqrt(Kmax2 - pPha[i]);
+			pPha[i] = invNF - sqrt(abs(invNF2 + pInt[i]));
+	}
+
+	return fiOut; // relies on move assignment / constructor to avoid copying this object on return
 }
 
 

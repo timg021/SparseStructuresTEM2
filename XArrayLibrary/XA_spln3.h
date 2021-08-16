@@ -93,6 +93,8 @@ namespace xar
 		void Rotate(XArray3D<T>& xaResult3D, double angleY, double angleX, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
 		//! Rotates 3D array around a given point with respect to two axes 
 		void Rotate1(XArray3D<T>& xaResult3D, double angleY, double angleX, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
+		//! Rotates 3D array around a given point with respect to three axes(three Euler angles)
+		void Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
 		//! Calculates multislice propagation of a plane electron wave through the 3D distribution of the scaled electrostatic potential defined by the wrapped object rXAr3D
 		void Multislice_eV(XArray2D<std::complex<T> >& xaCamp2D, double angleZ, double angleY, double sliceTh, double q2max = -1.0) const;
 
@@ -415,6 +417,128 @@ template <class T> void xar::XArray3DSpln<T>::Rotate1(XArray3D<T>& xaResult3D, d
 
 
 //---------------------------------------------------------------------------
+//Function XArray3DSpln<T>::Rotate3
+//
+//	//! Rotates 3D array around a given point with respect to three axes (three Euler angles)
+//
+/*!
+	\brief		Rotates 3D array around two axes
+	\param		xaResult3D Resultant rotated 3D array
+	\param		angleZ rotation anglez (in radians) around Z axis
+	\param		angleY rotation anglez (in radians) around Y' axis
+	\param		angleZ2 rotation anglez (in radians) around Z'' axis
+	\param		zc Z-coordinate of the centre of rotation
+	\param		yc Y-coordinate of the centre of rotation
+	\param		xc X-coordinate of the centre of rotation
+	\param		Backgr Value for filling "background" areas around the rotated array
+	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+				called from inside this function
+	\return		\a None
+	\par		Description:
+		This function rotates 3D array around a specified point by the 3 specified Euler angles using trilinear interpolation
+*/
+template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, double zc, double yc, double xc, T Backgr) const
+{
+	// check and enforce default coordinates of the centre of rotation
+	if (zc == -1.1e-11) zc = 0.5 * (m_zlo + m_zhi);
+	if (yc == -1.1e-11) yc = 0.5 * (m_ylo + m_yhi);
+	if (xc == -1.1e-11) xc = 0.5 * (m_xlo + m_xhi);
+
+	// we don't expect xaResult3D to be necesserily properly "formatted/dimensioned" before this function is called
+	if (xaResult3D.GetDim1() != m_nz || xaResult3D.GetDim2() != m_ny || xaResult3D.GetDim3() != m_nx) xaResult3D.Resize(m_nz, m_ny, m_nx, Backgr);
+	else xaResult3D.Fill(Backgr);
+
+	// create new head (note that the new head is created even if the array did not have a had before the rotation)
+	IXAHWave3D* pHead = CreateWavehead3D();
+	pHead->SetData(m_wl, m_zlo, m_zhi, m_ylo, m_yhi, m_xlo, m_xhi);
+	xaResult3D.SetHeadPtr(pHead);
+
+	// calculate the coordinate illumination angle parameters
+	double sinangleZ(sin(angleZ)), cosangleZ(cos(angleZ)), sinangleY(sin(angleY)), cosangleY(cos(angleY)), sinangleZ2(sin(angleZ2)), cosangleZ2(cos(angleZ2));
+	double xxx;
+	vector<double> x_sinangleZ2(m_nx), x_cosangleZ2(m_nx);
+	for (index_t i = 0; i < m_nx; i++)
+	{
+		xxx = m_xlo + m_xst * i - xc;
+		x_sinangleZ2[i] = xxx * sinangleZ2;
+		x_cosangleZ2[i] = xxx * cosangleZ2;
+	}
+	double yyy;
+	vector<double> y_sinangleZ2(m_ny), y_cosangleZ2(m_ny);
+	for (index_t j = 0; j < m_ny; j++)
+	{
+		yyy = m_ylo + m_yst * j - yc;
+		y_sinangleZ2[j] = yyy * sinangleZ2;
+		y_cosangleZ2[j] = yyy * cosangleZ2;
+	}
+	double zzz;
+	vector<double> z_sinangleY(m_nz), z_cosangleY(m_nz);
+	for (index_t n = 0; n < m_nz; n++)
+	{
+		zzz = m_zlo + m_zst * n - zc;
+		z_sinangleY[n] = zzz * sinangleY;
+		z_cosangleY[n] = zzz * cosangleY;
+	}
+
+	int ii, jj, nn, nx2 = int(m_nx) - 2, ny2 = int(m_ny) - 2, nz2 = int(m_nz) - 2;
+	double xx, xx_sinangleY, xx_cosangleY, yy, yy_sinangleZ, yy_cosangleZ, dx0, dx1, dy0, dy1, dz0, dz1;
+
+	for (index_t i = 0; i < m_nx; i++)
+	{
+		for (index_t j = 0; j < m_ny; j++)
+		{
+			// inverse rotation around Z'' axis
+			// xk = m_xlo + m_xst * i;
+			// yk = m_ylo + m_yst * j;
+			// x = xc + (xk - xc) * cosanglez2 + (yk - yc) * sinanglez2;
+			// y = yc + (-xk + xc) * sinanglez2 + (yk - yc) * cosanglez2;
+			xx = x_cosangleZ2[i] + y_sinangleZ2[j]; // x - xc coordinate after the inverse rotation around Z''
+			yy = -x_sinangleZ2[i] + y_cosangleZ2[j]; // y - yc coordinate after the inverse rotation around Z''
+			xx_sinangleY = zc + xx * sinangleY;
+			xx_cosangleY = xx * cosangleY;
+			yy_sinangleZ = xc + yy * sinangleZ;
+			yy_cosangleZ = yc + yy * cosangleZ;
+
+			for (index_t n = 0; n < m_nz; n++)
+			{
+				// inverse rotation around Y' axis
+				// zk = m_zlo + m_zst * n;
+				// x = xc + (xk - xc) * cosangley + (-zk + zc) * sinangley;// 
+				// z = zc + (xk - xc) * sinangley + (zk - zc) * cosangley;
+				xx = xx_cosangleY - z_sinangleY[n]; // x - xc coordinate after the inverse rotation around Y'
+				zzz = xx_sinangleY + z_cosangleY[n]; // z coordinate after the inverse rotation around Y'
+				dz1 = abs(zzz - m_zlo) / m_zst;
+				nn = (int)dz1; if (nn < 0 || nn > nz2) continue;
+				dz1 -= nn; dz0 = 1.0 - dz1;
+
+				// inverse rotation around Z axis
+				//pd.adata[i].x = xc + (xk - xc) * cosanglez + (yk - yc) * sinanglez;
+				//pd.adata[i].y = yc + (-xk + xc) * sinanglez + (yk - yc) * cosanglez;
+				xxx = yy_sinangleZ + xx * cosangleZ; // x coordinate after the inverse rotation around Z
+				dx1 = abs(xxx - m_xlo) / m_xst;
+				ii = (int)dx1; if (ii < 0 || ii > nx2) continue;
+				dx1 -= ii; dx0 = 1.0 - dx1;
+
+				yyy = yy_cosangleZ - xx * sinangleZ; // y coordinate after the inverse rotation around Z
+				dy1 = abs(yyy - m_ylo) / m_yst;
+				jj = (int)dy1; if (jj < 0 || jj > ny2) continue;
+				dy1 -= jj; dy0 = 1.0 - dy1;
+
+				xaResult3D[n][j][i] = m_rXArray3D[nn][jj][ii] * T(dx0 * dy0 * dz0) +
+					m_rXArray3D[nn][jj][ii + 1] * T(dx1 * dy0 * dz0) +
+					m_rXArray3D[nn][jj + 1][ii + 1] * T(dx1 * dy1 * dz0) +
+					m_rXArray3D[nn + 1][jj + 1][ii + 1] * T(dx1 * dy1 * dz1) +
+					m_rXArray3D[nn + 1][jj][ii + 1] * T(dx1 * dy0 * dz1) +
+					m_rXArray3D[nn][jj + 1][ii] * T(dx0 * dy1 * dz0) +
+					m_rXArray3D[nn + 1][jj + 1][ii] * T(dx0 * dy1 * dz1) +
+					m_rXArray3D[nn + 1][jj][ii] * T(dx0 * dy0 * dz1);
+			}
+		}
+	}
+}
+
+
+//---------------------------------------------------------------------------
 //Function XArray3DSpln<T>::Multislice_eV
 //
 // Calculates multislice propagation of a plane electron wave through the 3D distribution of the scaled electrostatic potential defined by the wrapped object rXAr3D
@@ -460,7 +584,7 @@ template <class T> void xar::XArray3DSpln<T>::Multislice_eV(XArray2D<std::comple
 	double sinangleZ(sin(angleZ)), cosangleZ(cos(angleZ)), sinangleY(sin(angleY)), cosangleY(cos(angleY));
 	double xc = (m_xlo + m_xhi) / 2.0, yc = (m_ylo + m_yhi) / 2.0, zc = (m_zlo + m_zhi) / 2.0;
 	double yyy;
-	vector<double> y_sinangleZ(m_nx), y_cosangleZ(m_nx);
+	vector<double> y_sinangleZ(m_ny), y_cosangleZ(m_ny);
 	for (index_t j = 0; j < m_ny; j++)
 	{
 		yyy = m_ylo + m_yst * j - yc;
@@ -468,8 +592,8 @@ template <class T> void xar::XArray3DSpln<T>::Multislice_eV(XArray2D<std::comple
 		y_cosangleZ[j] = yyy * cosangleZ;
 	}
 	double xxx;
-	vector<double> x_sinangleY(m_ny), x_cosangleY(m_ny);
-	for (index_t i = 0; i < m_ny; i++)
+	vector<double> x_sinangleY(m_nx), x_cosangleY(m_nx);
+	for (index_t i = 0; i < m_nx; i++)
 	{
 		xxx = m_xlo + m_xst * i - xc;
 		x_sinangleY[i] = xxx * sinangleY;

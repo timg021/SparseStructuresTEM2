@@ -71,10 +71,16 @@ namespace xar
 		XArray2D(void);
 		//! Constructor with predefined sizes
 		XArray2D(index_t iDim1, index_t iDim2, T tVal = T());
-		//! Promotion from XArrayBase
-		XArray2D(const XArrayBase<T>& rXArB, index_t iDim1, index_t iDim2);
+		//! Promotion from vector
+		XArray2D(const vector<T>& rXArB, index_t iDim1, index_t iDim2);
+		//! Promotion from XArray
+		XArray2D(const XArray<T>& rXArB, index_t iDim1, index_t iDim2);
+		//! Move promotion from XArray
+		XArray2D(XArray<T>&& rXArB, index_t iDim1, index_t iDim2);
 		//! Copy constructor
 		XArray2D(const XArray2D<T>& rXArray2D);
+		//! Move constructor
+		XArray2D(XArray2D<T>&& rXArray2D);
 		//! Destructor (head is deleted in the base class)
 		~XArray2D() {}
 
@@ -82,11 +88,13 @@ namespace xar
 	// Most are inherited from XArray<T>, others need to verify that the dimensions of the arguments are the same
 	public:
 		//! Provides read-only access to array's rows
-		const T* operator[] (index_t i) const { return &(XArrayBase<T>::front()) + i * m_iDim2; }
+		const T* operator[] (index_t i) const { return &((*this).front()) + i * m_iDim2; }
 		//! Provides read and write access to array's rows
-		T* operator[] (index_t i) { return &(XArrayBase<T>::front()) + i * m_iDim2; }
+		T* operator[] (index_t i) { return &((*this).front()) + i * m_iDim2; }
 		//! Makes this array a (deep) copy of the rXArray2D
 		void operator=(const XArray2D<T>& rXArray2D); 
+		//! Move assignment operator from another XArray2D
+		void operator=(XArray2D<T>&& rXArray2D) noexcept;
 		//! Performs elementwise addition of the two arrays
 		void operator+=(const XArray2D<T>& rXArray2D);
 		//! Performs elementwise subtraction of the two arrays
@@ -147,9 +155,9 @@ namespace xar
 		//! Provides slow (but checked and polymorphic) write access to an element
 		void SetCmplAt(index_t i, index_t j, dcomplex cxdVal) { XArray<T>::SetCmplAt(i * m_iDim2 + j, cxdVal); }
 		//! Accepts an external memory buffer with its contents and makes it the internal 2D array (head does not change)
-		void AcceptMemBuffer(T* ptBufBegin, index_t iDim1, index_t iDim2);
+		//void AcceptMemBuffer(T* ptBufBegin, index_t iDim1, index_t iDim2);
 		//! Relinquishes the responsibility for the memory area occupied by the internal 2D array  (head is deleted)
-		void ReleaseMemBuffer();
+		//void ReleaseMemBuffer();
 		//! Changes the size of the array and fills the NEW elements with a given value (head is not affected)
 		//  Call the non-member function ResizeH if the head should be resized as well
 		void Resize(index_t iDim1, index_t iDim2, T tVal = T());
@@ -175,7 +183,10 @@ namespace xar
 
 	// Overridables
 	public:
-	
+
+	// Static functions
+	public: 
+
 	// Implementation
 	protected:
 
@@ -213,12 +224,32 @@ namespace xar
 		m_iDim2 = iDim2;
 	}
 
-	//! Promotion from XArrayBase
-	template <class T> XArray2D<T>::XArray2D(const XArrayBase<T>& va, index_t iDim1, index_t iDim2)
+	//! Promotion from vector
+	template <class T> XArray2D<T>::XArray2D(const vector<T>& va, index_t iDim1, index_t iDim2)
 		: XArray<T>(va)
 	{
 		if (iDim1 < 0 || iDim2 < 0)
 			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)"); 	
+		m_iDim1 = iDim1;
+		m_iDim2 = iDim2;
+	}
+
+	//! Promotion from XArray
+	template <class T> XArray2D<T>::XArray2D(const XArray<T>& xa, index_t iDim1, index_t iDim2)
+		: XArray<T>(xa)
+	{
+		if (iDim1 < 0 || iDim2 < 0)
+			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)");
+		m_iDim1 = iDim1;
+		m_iDim2 = iDim2;
+	}
+
+	//! Move promotion from XArray
+	template <class T> XArray2D<T>::XArray2D(XArray<T>&& xa, index_t iDim1, index_t iDim2)
+		: XArray<T>(xa)
+	{
+		if (iDim1 < 0 || iDim2 < 0)
+			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::XArray2D (negative dimension)");
 		m_iDim1 = iDim1;
 		m_iDim2 = iDim2;
 	}
@@ -231,24 +262,32 @@ namespace xar
 		m_iDim2 = xa2.m_iDim2;
 	}
 
-	//! Accepts an external memory buffer with its contents and makes it the internal 2D array (head does not change)
-	template <class T> void XArray2D<T>::AcceptMemBuffer(T* ptBufBegin, index_t iDim1, index_t iDim2)
+	//! Move constructor
+	template <class T> XArray2D<T>::XArray2D(XArray2D<T>&& xa2)
+		: XArray<T>(std::move(xa2))
 	{
-		if (iDim1 < 0 || iDim2 < 0)
-			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::AcceptMemBuffer (negative dimension)"); 
-		XArrayBase<T>::acceptMemBuffer(ptBufBegin, iDim1 * iDim2);
-		m_iDim1 = iDim1;
-		m_iDim2 = iDim2;
+		m_iDim1 = xa2.m_iDim1;
+		m_iDim2 = xa2.m_iDim2;
 	}
 
+	//! Accepts an external memory buffer with its contents and makes it the internal 2D array (head does not change)
+	//template <class T> void XArray2D<T>::AcceptMemBuffer(T* ptBufBegin, index_t iDim1, index_t iDim2)
+	//{
+	//	if (iDim1 < 0 || iDim2 < 0)
+	//		throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::AcceptMemBuffer (negative dimension)"); 
+	//	(*this).acceptMemBuffer(ptBufBegin, iDim1 * iDim2);
+	//	m_iDim1 = iDim1;
+	//	m_iDim2 = iDim2;
+	//}
+
 	//! Relinquishes the responsibility for the memory area occupied by the internal 2D array  (head is deleted)
-	template <class T> void XArray2D<T>::ReleaseMemBuffer()
-	{
-		XArrayBase<T>::releaseMemBuffer(); 
-		XArray<T>::SetHeadPtr(0);
-		m_iDim1 = 0;
-		m_iDim2 = 0;
-	}
+	//template <class T> void XArray2D<T>::ReleaseMemBuffer()
+	//{
+	//	(*this).releaseMemBuffer(); 
+	//	XArray<T>::SetHeadPtr(0);
+	//	m_iDim1 = 0;
+	//	m_iDim2 = 0;
+	//}
 
 	//! Changes the size of the array and fills the NEW elements with a given value (head is not affected)
 	// Call non-member function ResizeH if the head should be resized as well
@@ -256,7 +295,7 @@ namespace xar
 	{
 		if (iDim1 < 0 || iDim2 < 0)
 			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::Resize (negative dimension)"); 
-		XArrayBase<T>::resize(iDim1 * iDim2, val);
+		(*this).resize(iDim1 * iDim2, val);
 		m_iDim1 = iDim1;
 		m_iDim2 = iDim2;
 	}
@@ -274,7 +313,7 @@ namespace xar
 	template <class T> void XArray2D<T>::Truncate()
 	{
 		XArray<T>::SetHeadPtr(0);
-		XArrayBase<T>::truncate();
+		(*this).truncate();
 		m_iDim1 = 0;
 		m_iDim2 = 0;
 	}
@@ -282,7 +321,7 @@ namespace xar
 	//! Swaps XArray2Ds and their heads
 	template <class T> void XArray2D<T>::Swap(XArray2D<T>& rXArray2D)
 	{
-		XArrayBase<T>::swap(rXArray2D);
+		(*this).swap(rXArray2D);
 		IXAHead* temp = XArray<T>::GetHeadPtr() ? XArray<T>::GetHeadPtr()->Clone() : 0;
 		IXAHead* temp1 = rXArray2D.XArray<T>::GetHeadPtr() ? rXArray2D.XArray<T>::GetHeadPtr()->Clone() : 0;
 		XArray<T>::SetHeadPtr(temp1); rXArray2D.XArray<T>::SetHeadPtr(temp);
@@ -296,8 +335,8 @@ namespace xar
 	{
 		if (iDim1 < 0 || iDim2 < 0)
 			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::SetDims (negative dimension)"); 
-		if (iDim1 * iDim2 != XArrayBase<T>::size())
-			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::SetDims (iDim1*iDim2 != XArrayBase<T>::size())");
+		if (iDim1 * iDim2 != (*this).size())
+			throw std::invalid_argument("invalid_argument 'iDim1 or iDim2' in XArray2D<T>::SetDims (iDim1*iDim2 != (*this).size())");
 
 		m_iDim1 = iDim1;
 		m_iDim2 = iDim2;
@@ -345,7 +384,7 @@ namespace xar
 			rDestXArray.Resize(iSize1, iSize2);
 		for (index_t i = 0; i < iSize1; i++) 
 		{
-			const T* pTemp = &(XArrayBase<T>::front()) + (iBeginDim1 + i) * GetDim2() + iBeginDim2;
+			const T* pTemp = &((*this).front()) + (iBeginDim1 + i) * GetDim2() + iBeginDim2;
 			for (index_t j = 0; j < iSize2; j++)
 				rDestXArray[i][j] = *(pTemp + j);
 		}
@@ -360,7 +399,7 @@ namespace xar
 			throw std::invalid_argument("invalid argument 'iBeginDim2 or rSrcSubXArray' in XArray2D<T>::SetSubarray");
 		for (index_t i = 0; i < rSrcSubXArray.GetDim1(); i++) 
 		{
-			T* pTemp = &(XArrayBase<T>::front()) + (iBeginDim1 + i) * GetDim2() + iBeginDim2;
+			T* pTemp = &((*this).front()) + (iBeginDim1 + i) * GetDim2() + iBeginDim2;
 			for (index_t j = 0; j < rSrcSubXArray.GetDim2(); j++)
 				*(pTemp + j) = rSrcSubXArray[i][j];
 		}
@@ -382,7 +421,7 @@ namespace xar
 		rDestXArray1D.Fill(T(0));
 		for (index_t i = 0; i < iSize1; i++)
 		{
-			const T* pTemp = &(XArrayBase<T>::front()) + (iBeginDim1 + i) * GetDim2() + iBeginDim2;
+			const T* pTemp = &((*this).front()) + (iBeginDim1 + i) * GetDim2() + iBeginDim2;
  			for (index_t j = 0; j < iSize2; j++)
 					rDestXArray1D[i] += *pTemp++;
 		}
@@ -404,7 +443,7 @@ namespace xar
 		index_t nx =  GetDim2();
 		for (index_t j = 0; j < iSize2; j++)
 		{
-			const T* pTemp = &(XArrayBase<T>::front()) + iBeginDim1 * nx + iBeginDim2 + j;
+			const T* pTemp = &((*this).front()) + iBeginDim1 * nx + iBeginDim2 + j;
 			for (index_t i = 0; i < iSize1; i++) 
 					rDestXArray1D[j] += *(pTemp + i * nx);
 		}
@@ -420,6 +459,15 @@ namespace xar
 		XArray<T>::operator=(xa2);
 		m_iDim1 = xa2.m_iDim1;
 		m_iDim2 = xa2.m_iDim2;
+	}
+
+	//! Move assignment operator from another XArray2D
+	template <class T> inline void XArray2D<T>::operator=(XArray2D<T>&& xa2) noexcept
+	{
+		if (this == &xa2) return;
+		m_iDim1 = xa2.m_iDim1;
+		m_iDim2 = xa2.m_iDim2;
+		XArray<T>::operator=(static_cast<XArray<T>&&>(xa2));
 	}
 
 	//! Performs elementwise addition of the two arrays
@@ -462,7 +510,7 @@ namespace xar
 namespace xar
 {
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::MakeComplex
+	//Function MakeComplex
 	//
 	//	Makes a complex XArray2D object C = A + ib or C = A * exp(ib) from a real XArray2D object A and a scalar b
 	//
@@ -483,7 +531,8 @@ namespace xar
 \verbatim
 XArray2D<float> A(4, 5, 1.0f);
 XArray2D<fcomplex> C; 
-MakeComplex(A, 0.0f, C, false);
+MakeComplex(A, 0.0f, C, false); //or
+C = MakeComplex(A, 0.0f, C, false);
 \endverbatim
 	*/
 	template <class T> void MakeComplex(const XArray2D<T>& A, T b, XArray2D< std::complex<T> >& C, bool bMakePolar)
@@ -492,9 +541,15 @@ MakeComplex(A, 0.0f, C, false);
 		C.SetDims(A.GetDim1(), A.GetDim2());
 	}
 
+	template <class T> XArray2D< std::complex<T> > MakeComplex(const XArray2D<T>& A, T b, bool bMakePolar)
+	{
+		XArray2D< std::complex<T> > C;
+		MakeComplex(A, b, C, bMakePolar);
+		return C;  // rely on move assignment / constructor to avoid copying this object on return
+	}
 
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::MakeComplex
+	//Function MakeComplex
 	//
 	//	Makes a complex XArray2D object C = a + iB or C = a * exp(iB) from a real XArray2D object B and a scalar a
 	//
@@ -515,7 +570,8 @@ MakeComplex(A, 0.0f, C, false);
 \verbatim
 XArray2D<float> B(4, 5, 1.0f);
 XArray2D<fcomplex> C;
-MakeComplex(1.0f, B, C, false);
+MakeComplex(1.0f, B, C, false); // or
+C = MakeComplex(1.0f, B, false);
 \endverbatim
 	*/
 	template <class T> void MakeComplex(T a, const XArray2D<T>& B, XArray2D< std::complex<T> >& C, bool bMakePolar)
@@ -524,9 +580,16 @@ MakeComplex(1.0f, B, C, false);
 		C.SetDims(B.GetDim1(), B.GetDim2());
 	}
 	
+	template <class T> XArray2D< std::complex<T> > MakeComplex(T a, const XArray2D<T>& B, bool bMakePolar)
+	{
+		XArray2D< std::complex<T> > C;
+		MakeComplex(a, B, C, bMakePolar);
+		return C;  // rely on move assignment / constructor to avoid copying this object on return
+	}
+
 
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::MakeComplex
+	//Function MakeComplex
 	//
 	//	Makes a complex XArray2D object C = A + iB or C = A * exp(iB) from 2 real XArray2D objects, A and B
 	//
@@ -548,18 +611,26 @@ MakeComplex(1.0f, B, C, false);
 \verbatim
 XArray2D<float> A(4, 5, 1.0f), B(4, 5, 2.0f);
 XArray2D<fcomplex> C;
-MakeComplex(A, B, C, false);
+MakeComplex(A, B, C, false); // or
+C = MakeComplex(A, B, false);
 \endverbatim
 	*/
 	template <class T> void MakeComplex(const XArray2D<T>& A, const XArray2D<T>& B, XArray2D< std::complex<T> >& C, bool bMakePolar)
 	{
 		MakeComplex((const XArray<T>&)A, (const XArray<T>&)B, (XArray< std::complex<T> >&)C, bMakePolar);
-		C.SetDims(A.GetDim1(), A.GetDim2());
+		C.SetDims(A.GetDim1(), A.GetDim2()); 
 	}
-	
+
+	template <class T> XArray2D< std::complex<T> > MakeComplex(const XArray2D<T>& A, const XArray2D<T>& B, bool bMakePolar)
+	{
+		XArray2D< std::complex<T> > C;
+		MakeComplex(A, B, C, bMakePolar);
+		return C;  // rely on move assignment / constructor to avoid copying this object on return
+	}
+
 
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::Re
+	//Function Re
 	//
 	//	Calculates the real part of a complex XArray2D object
 	//
@@ -578,7 +649,8 @@ MakeComplex(A, B, C, false);
 \verbatim
 XArray2D<dcomplex> C(4, 5, dcomplex(1.0, 2.0));
 XArray2D<double> A;
-Re(C, A);
+Re(C, A); // or
+A = Re(C);
 \endverbatim
 	*/
 	template <class T> void Re(const XArray2D< std::complex<T> >& C, XArray2D<T>& A)
@@ -586,10 +658,16 @@ Re(C, A);
 		Re((const XArray< std::complex<T> >&)C, (XArray<T>&)A);
 		A.SetDims(C.GetDim1(), C.GetDim2());
 	}
-	
-	
+
+	template <class T> XArray2D<T> Re(const XArray2D< std::complex<T> >& C)
+	{
+		XArray2D<T> A;
+		Re(C, A);
+		return A; // rely on move assignment / constructor to avoid copying this object on return
+	}
+
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::Im
+	//Function Im
 	//
 	//	Calculates the imaginary part of a complex XArray2D object
 	//
@@ -608,7 +686,8 @@ Re(C, A);
 \verbatim
 XArray2D<dcomplex> C(4, 5, dcomplex(1.0, 2.0));
 XArray2D<double> A;
-Im(C, A);
+Im(C, A); // or
+A = Im(C);
 \endverbatim
 	*/
 	template <class T> void Im(const XArray2D< std::complex<T> >& C, XArray2D<T>& A)
@@ -616,10 +695,16 @@ Im(C, A);
 		Im((const XArray< std::complex<T> >&)C, (XArray<T>&)A);
 		A.SetDims(C.GetDim1(), C.GetDim2());
 	}
-	
-	
+
+	template <class T> XArray2D<T> Im(const XArray2D< std::complex<T> >& C)
+	{
+		XArray2D<T> A;
+		Im(C, A);
+		return A; // rely on move assignment / constructor to avoid copying this object on return
+	}
+
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::Abs
+	//Function Abs
 	//
 	//	Calculates the modulus of a complex XArray2D object
 	//
@@ -638,7 +723,8 @@ Im(C, A);
 \verbatim
 XArray2D<dcomplex> C(4, 5, dcomplex(1.0, 2.0));
 XArray2D<double> A;
-Abs(C, A);
+Abs(C, A); // or
+A = Abs(C);
 \endverbatim
 	*/	
 	template <class T> void Abs(const XArray2D< std::complex<T> >& C, XArray2D<T>& A)
@@ -647,9 +733,16 @@ Abs(C, A);
 		A.SetDims(C.GetDim1(), C.GetDim2());
 	}
 	
+	template <class T> XArray2D<T> Abs(const XArray2D< std::complex<T> >& C)
+	{
+		XArray2D<T> A;
+		Abs(C, A);
+		return A; // rely on move assignment / constructor to avoid copying this object on return
+	}
+
 	
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::Arg
+	//Function Arg
 	//
 	//	Calculates the argument of a complex XArray2D object
 	//
@@ -667,7 +760,8 @@ Abs(C, A);
 \verbatim
 XArray2D<dcomplex> C(4, 5, dcomplex(1.0, 2.0));
 XArray2D<double> A;
-Arg(C, A);
+Arg(C, A); // or
+A = Arg(C);
 \endverbatim
 	*/	
 	template <class T> void Arg(const XArray2D< std::complex<T> >& C, XArray2D<T>& A)
@@ -675,10 +769,17 @@ Arg(C, A);
 		Arg((const XArray< std::complex<T> >&)C, (XArray<T>&)A);
 		A.SetDims(C.GetDim1(), C.GetDim2());
 	}
+
+	template <class T> XArray2D<T> Arg(const XArray2D< std::complex<T> >& C)
+	{
+		XArray2D<T> A;
+		Arg(C, A);
+		return A; // rely on move assignment / constructor to avoid copying this object on return
+	}
 	
 	
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::Abs2
+	//Function Abs2
 	//
 	//	Calculates the modulus of a complex XArray2D object
 	//
@@ -697,7 +798,8 @@ Arg(C, A);
 \verbatim
 XArray2D<dcomplex> C(4, 5, dcomplex(1.0, 2.0));
 XArray2D<double> A;
-Abs2(C, A);
+Abs2(C, A); // or
+A = Abs2(C);
 \endverbatim
 	*/	
 	template <class T> void Abs2(const XArray2D< std::complex<T> >& C, XArray2D<T>& A)
@@ -706,9 +808,16 @@ Abs2(C, A);
 		A.SetDims(C.GetDim1(), C.GetDim2());
 	}
 	
+	template <class T> XArray2D<T> Abs2(const XArray2D< std::complex<T> >& C)
+	{
+		XArray2D<T> A;
+		Abs2(C, A);
+		return A; // rely on move assignment / constructor to avoid copying this object on return
+	}
+
 	
 	//---------------------------------------------------------------------------
-	//Function XArray2D<T>::CArg
+	//Function CArg
 	//
 	//	Calculates the 1D-continuous phase of a complex XArray2D object
 	//
@@ -728,7 +837,8 @@ Abs2(C, A);
 \verbatim
 XArray2D<dcomplex> C(4, 5, dcomplex(1.0, 2.0));
 XArray2D<double> A;
-CArg(C, A);
+CArg(C, A); // or
+A = CArg(C);
 \endverbatim
 	*/	
 	template <class T> void CArg(const XArray2D< std::complex<T> >& C, XArray2D<T>& A) 
@@ -760,6 +870,13 @@ CArg(C, A);
 					A[i][j] = carg(C[i][j], A[i][j - 1]); // move from left to right
 			}
 		}
+	}
+
+	template <class T> XArray2D<T> CArg(const XArray2D< std::complex<T> >& C)
+	{
+		XArray2D<T> A;
+		CArg(C, A);
+		return A; // rely on move assignment / constructor to avoid copying this object on return
 	}
 
 

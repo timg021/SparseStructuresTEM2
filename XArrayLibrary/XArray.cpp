@@ -1,31 +1,21 @@
-//Header XArray.h
+//Header XArray.cpp
 //
 //
-//	HEADER FILE TITLE:
+//	FILE TITLE:
 //
 //		Common base class template for XArray classes
 //
 /*!
-	\file		XArray.h
+	\file		XArray.cpp
 	\brief		Common base class template for XArray classes
 	\par		Description:
 		This is a common base class template for XArrayND<T> classes with different dimensions N.
 		Also defined here are some basic XArray<complex<T> > - related non-member functions.
 
 */
-#if !defined XARRAY_H
-#define XARRAY_H
-//---------------------------------------------------------------------------
-//	INCLUDE FILES
-//
-#include <cmath>
-#include <limits>
-#include <algorithm>
+#include "XArray.h" 
 
-#include "IXAHead.h" // base IXAHead class
 
-namespace xar
-{
 //---------------------------------------------------------------------------
 //	FORWARD REFERENCES
 //
@@ -47,187 +37,19 @@ namespace xar
 //---------------------------------------------------------------------------
 //	CLASS DECLARATIONS
 //
-//---------------------------------------------------------------------------
-//Class XArray<T>
-//
-//	Common base class template for XArray classes
-//
-/*!
-	\brief		Common base class template for XArray classes
-	\par		Description:
-				This class is designed as an abstract implementation class which augments vector<T> base class
-				functionality by providing additional useful dimensionality-neutral operations for XArray classes.
-				Many useful functions are inherited from the base class, vector<T>.
-				XArray class is also responsible for (has ownership of) the associated head.
-	\remarks	This class is supposed to be 'abstract' and cannot be instantiated (only its
-				dimension-specific descendants, like XArray1D<T>, can be instantiated)
-	\remarks	Resizing functions AcceptMemBuffer, ReleaseMemBuffer, Resize, Truncate, Swap, etc. are defined in derived classes
-				as they are dimension-specific
-	\remarks	This class is not designed for polymorphism and does not contain virtual functions
-	\warning	The absence of appropriate specializations of the function GetValuetype()
-				will prevent instantiation of XArray<T> object for new types T
-*/
-	template <class T> class XArray : public vector<T>
-	{
-	// Enumerators
-	// Structures
-	// Constructors
-		//! Constructors are protected to prevent instantiation of objects of this class
-		// GetValuetype() is called in constructors only to prevent the compillation 
-		//		of XArray<T>-derived objects with unsupported T types
-	protected:
-		//! Default constructor
-		XArray() : m_pHead(0) {  GetValuetype(); }
-		//! Constructor with a predefined size
-		explicit XArray(index_t NumPoints, T tVal = T()) : vector<T>(NumPoints, tVal), m_pHead(0) { GetValuetype(); }
-		 //! Promotion from vector
-		explicit XArray(const vector<T>& rvector) : vector<T>(rvector), m_pHead(0) { GetValuetype(); }
-		//! Move promotion from vector
-		explicit XArray(vector<T>&& rvector) : vector<T>(rvector), m_pHead(0) { GetValuetype(); }
-		//! Construction from a raw memory buffer
-		XArray(T* ptBufBegin, T* ptBufEnd) : vector<T>(ptBufBegin, ptBufEnd), m_pHead(0) { GetValuetype(); } 
-		 //! Copy constructor
-		XArray(const XArray<T>& rXArray) : vector<T>(rXArray), m_pHead(rXArray.m_pHead ? rXArray.m_pHead->Clone() : 0) {}
-		//! Move constructor
-		XArray(XArray<T>&& rXArray) noexcept : vector<T>(std::move(rXArray)), m_pHead(rXArray.m_pHead) { rXArray.m_pHead = 0; }
-		 //! Destructor, note that XArray has ownership of its head
-		~XArray() { delete m_pHead; }
-
-	// Operators
-	public:
-		//! Makes this array a (deep) copy of the rXArray
-		void operator=(const XArray<T>& rXArray);
-		//! Move assignment operator from another XArray
-		void operator=(XArray<T>&& rXArray) noexcept;
-		//! Makes this array a (deep) copy of the rvector and sets the head pointer to 0
-		void operator=(const vector<T>& rvector);
-		//! Move assignment operator from another vector
-		void operator=(vector<T>&& rvector);
-		//! Adds a given value to each array element
-		void operator+=(T tVal);
-		//! Subtracts a given value from each array element
-		void operator-=(T tVal);
-		//! Multiplies each array element by a given value
-		void operator*=(T tVal);
-		//! Divides each array element by a given value  (checks for division by zero)
-		void operator/=(T tVal);
-		//! Raises each array element to a given power
-		void operator^=(T tVal);
-		// The following operators will throw an exception if SameHead returns false
-		// (this is why m_pHead must be a member of XArray, and not of derived classes)
-		//
-		//! Performs elementwise addition of the two arrays
-		void operator+=(const XArray<T>& rXArray);
-		//! Performs elementwise subtraction of the two arrays
-		void operator-=(const XArray<T>& rXArray);
-		//! Performs elementwise multiplication of the two arrays
-		void operator*=(const XArray<T>& rXArray);
-		//! Performs elementwise division of the two arrays (checks for division by zero)
-		void operator/=(const XArray<T>& rXArray);
-
-	// Attributes
-	public:
-		//! Returns constant pointer to the associated head (zero by default)
-		const IXAHead* GetHeadPtr(void) const { return m_pHead; }
-		//! Returns a modifiable pointer to the associated head (zero by default)
-		IXAHead* GetHeadPtr(void) { return m_pHead; }
-		//! Sets a new head pointer (deletes the old head!)
-		void SetHeadPtr(IXAHead* pHead) { if (pHead) pHead->Validate(); delete m_pHead; m_pHead = pHead; }
-		//! Calculates various standard norms (metrics) of the XArray data
-		double Norm(_eNormID eMode) const; 
-		//! Calculates chi-square distance from another XArray image
-		double Chi2(const XArray<T>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const;
-
-	// Operations
-	public:
-		//! If m_pHead==0, then returns rXArray.m_pHead==0, else calls an overridable function m_pHead->Equivalent(rXArray.m_pHead)
-		bool SameHead(const XArray<T>& rXArray) const;
-		//! Provides slow (but checked and polymorphic) read access to an element
-		double GetAt(index_t index) const;
-		//! Provides slow (but checked and polymorphic) write access to an element
-		void SetAt(index_t index, double dblVal);
-		//! Provides slow (but checked and polymorphic) read access to an element
-		dcomplex GetCmplAt(index_t index) const;
-		//! Provides slow (but checked and polymorphic) write access to an element
-		void SetCmplAt(index_t index, dcomplex cxdVal);
-		//! Fills the array with a given fixed value
-		void Fill(T tVal) { std::fill(vector<T>::begin(), vector<T>::end(), tVal); }
-		//! Subtracts tSubtract, then replaces all values smaller than tThreshold by tThreshold
-		void ThresholdLow(T tSubtract, T tThreshold);
-		//! Replaces each array member with its modulus
-		void Abs(void);
-		//! Replaces each array member with its square modulus
-		void Abs2(void);
-		//! Replaces each array member with its exponent
-		void Exp(void);
-		//! Replaces each array member with its logarithm
-		void Log(void);
-		//! Replaces each array member with its sine
-		void Sin(void); 
-		//! Replaces each array member with its cosine
-		void Cos(void);
-		//! Replaces each array member with its tangent
-		void Tan(void);
-		//! Replaces each array member with its arcsine
-		void Asin(void);
-		//! Replaces each array member with its arccosine
-		void Acos(void);
-		//! Replaces each array member with its arctangent
-		void Atan(void);
-
-	// Overridables
-	public:
-
-	// Static functions
-	public: 
-		//! Returns the xar::_eValueType corresponding to T
-		// The absense of relevant specialization will prevent instantiation
-		// of XArray<T> classes for unsupported T-types (this is the intended behavior)
-		static _eValueType GetValuetype(void);
-	
-	// Implementation
-	protected:
-
-	private:
-	// Member variables	
-		 //! This pointer is an interface to a loosely coupled head (it is 0 by default)
-		IXAHead* m_pHead;
-
-	// Member functions
-
-	};
-
-	//---------------------------------------------------------------------------
-	//	RELATED IN-LINE NON-MEMBER DEFINITIONS
-	//
-	template <class T> void MakeComplex(const XArray<T>& A, T b, XArray< std::complex<T> >& C, bool bMakePolar);
-	template <class T> void MakeComplex(T a, const XArray<T>& B, XArray< std::complex<T> >& C, bool bMakePolar);
-	template <class T> void MakeComplex(const XArray<T>& A, const XArray<T>& B, XArray< std::complex<T> >& C, bool bMakePolar);
-	template <class T> void MultiplyExpiFi(XArray< std::complex<T> >& C, const XArray<T>& Fi);
-	template <class T> void ReplaceModulus(XArray< std::complex<T> >& C, const XArray<T>& A);
-	template <class T> void Re(const XArray< std::complex<T> >& C, XArray<T>& A);
-	template <class T> void Im(const XArray< std::complex<T> >& C, XArray<T>& A);
-	template <class T> void Abs(const XArray< std::complex<T> >& C, XArray<T>& A);
-	template <class T> void Arg(const XArray< std::complex<T> >& C, XArray<T>& A);
-	template <class T> void Abs2(const XArray< std::complex<T> >& C, XArray<T>& A);
-	template <class T> void Conjg(XArray< std::complex<T> >& C);
-	template <class T> void CArg(const XArray< std::complex<T> >& C, XArray<T>& A);
-
-}  //namespace xar closed
 
 //---------------------------------------------------------------------------
 //	TEMPLATE MEMBER DEFINITIONS
 //
-#if 0
 namespace xar
 {
 	//
 	//NOTE: the absense of relevant specialization will prevent instantiation
 	//		of XArray<T> classes for unsupported T-types (this is the intended behavior)
 	//
-	inline _eValueType XArray<char>::GetValuetype() { return eXAChar; }
-	inline _eValueType XArray<short>::GetValuetype() { return eXAShort; }
-	inline _eValueType XArray<long>::GetValuetype() { return eXALong; }
+	inline _eValueType XArray<char>::GetValuetype() { return eXAChar; }	
+	inline _eValueType XArray<short>::GetValuetype() { return eXAShort; }	
+	inline _eValueType XArray<long>::GetValuetype() { return eXALong; }	
 	inline _eValueType XArray<float>::GetValuetype() { return eXAFloat; }
 	inline _eValueType XArray<double>::GetValuetype() { return eXADouble; }
 	inline _eValueType XArray<fcomplex>::GetValuetype() { return eXAFComplex; }
@@ -242,7 +64,7 @@ namespace xar
 		}
 		else
 		{
-			return xa.m_pHead == 0;
+			return xa.m_pHead == 0; 
 		}
 	}
 
@@ -265,7 +87,8 @@ namespace xar
 		//if (xa.m_pHead) xa.m_pHead->Validate(); // this operator cannot throw
 		vector<T>::operator=(std::move(xa));
 		delete m_pHead;
-		m_pHead = xa.m_pHead ? xa.m_pHead->Clone() : 0;
+		m_pHead = xa.m_pHead; // take ownership of the xa's head
+		xa.m_pHead = 0;
 	}
 
 
@@ -287,91 +110,91 @@ namespace xar
 	{
 		if (xa.size() != vector<T>::size()) throw std::range_error("range_error lhs.size != rhs.size in XArray<T>::operator+=");
 		if (!SameHead(xa))
-			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator+= (different head)");
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] += xa[i];
+			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator+= (different head)"); 	
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] += xa[i];
 	}
-
-
+	
+	
 	template <class T> void XArray<T>::operator-=(const XArray<T>& xa)
 	{
 		if (xa.size() != vector<T>::size()) throw std::range_error("range_error lhs.size != rhs.size in XArray<T>::operator-=");
 		if (!SameHead(xa))
-			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator-= (different head)");
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] -= xa[i];
+			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator-= (different head)"); 	
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] -= xa[i];
 	}
-
-
+	
+	
 	template <class T> void XArray<T>::operator*=(const XArray<T>& xa)
 	{
 		if (xa.size() != vector<T>::size()) throw std::range_error("range_error lhs.size != rhs.size in XArray<T>::operator*=");
 		if (!SameHead(xa))
-			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator*= (different head)");
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] *= xa[i];
+			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator*= (different head)"); 	
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] *= xa[i];
 	}
 
-
+	
 	template <class T> void XArray<T>::operator/=(const XArray<T>& xa)
-		// This operator can leave *this in an incorrect state, but the alternatives are too expensive
+	// This operator can leave *this in an incorrect state, but the alternatives are too expensive
 	{
 		if (xa.size() != vector<T>::size()) throw std::range_error("range_error lhs.size != rhs.size in XArray<T>::operator/=");
 		if (!SameHead(xa))
-			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator/= (different head)");
-		for (index_t i = 0; i < (*this).size(); i++)
+			throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator/= (different head)"); 	
+		for (index_t i=0; i<(*this).size(); i++) 
 		{
-			if (xa[i] == T(0)) throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator/= (division by zero)");
+			if (xa[i] == T(0)) throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator/= (division by zero)"); 	
 			(*this)[i] /= xa[i];
 		}
 	}
 
-
+	
 	template <class T> void XArray<T>::operator+=(T tVal)
 	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] += tVal;
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] += tVal;
 	}
-
+	
 
 	template <class T> void XArray<T>::operator-=(T tVal)
 	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] -= tVal;
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] -= tVal;
 	}
-
+	
 
 	template <class T> void XArray<T>::operator*=(T tVal)
 	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] *= tVal;
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] *= tVal;
 	}
 
 
 	template <class T> void XArray<T>::operator/=(T tVal)
 	{
-		if (tVal == T(0)) throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator/= (division by zero)");
-		else
+		if (tVal == T(0)) throw std::invalid_argument("invalid_argument 'rhs' in XArray<T>::operator/= (division by zero)"); 	
+		else 
 		{
 			T tAval = T(1) / tVal;
-			for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] *= tAval;
+			for (index_t i=0; i<(*this).size(); i++)  (*this)[i] *= tAval;
 		}
 	}
-
+	
 
 	template <class T> void XArray<T>::operator^=(T tVal)
-		// This operator is specialized separately for complex T
+	// This operator is specialized separately for complex T
 	{
 		double dblVal(tVal);
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = T(pow((double)(*this)[i], dblVal));
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = T(pow((double)(*this)[i], dblVal));
 	}
-
+	
 
 	//***** member functions
 
-	template <class T> inline void XArray<T>::Abs()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = T(fabs((*this)[i]));
+	template <class T> inline void XArray<T>::Abs() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = T(fabs((*this)[i]));
 	}
 
-
+	
 	template <class T> inline void XArray<T>::ThresholdLow(T tSubtract, T tThreshold)
-		// This function is specialized separately for complex T
+	// This function is specialized separately for complex T
 	{
 		for (index_t i = 0; i < (*this).size(); i++)
 		{
@@ -379,97 +202,98 @@ namespace xar
 			if ((*this)[i] < tThreshold) (*this)[i] = tThreshold;
 		}
 	}
+	
 
-
-	template <class T> inline void XArray<T>::Abs2()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (*this)[i] * (*this)[i];
+	template <class T> inline void XArray<T>::Abs2() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (*this)[i] * (*this)[i];
 	}
 
 
-	template <class T> inline void XArray<T>::Exp()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)exp((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Exp() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)exp((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Log()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)log((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Log() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)log((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Sin()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)sin((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Sin() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)sin((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Cos()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)cos((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Cos() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)cos((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Tan()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)tan((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Tan() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)tan((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Asin()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)asin((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Asin() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)asin((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Acos()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)acos((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Acos() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)acos((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Atan()
-		// This function is specialized separately for complex T
-	{
-		for (index_t i = 0; i < (*this).size(); i++) (*this)[i] = (T)atan((double)(*this)[i]);
+	template <class T> inline void XArray<T>::Atan() 
+	// This function is specialized separately for complex T
+	{ 
+		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)atan((double)(*this)[i]);
 	}
 
 
-	template <class T> inline double XArray<T>::GetAt(index_t index) const
-		// This function is specialized separately for complex T
-	{
+	template <class T> inline double XArray<T>::GetAt(index_t index) const 
+	// This function is specialized separately for complex T
+	{ 
 		return double(vector<T>::at(index));
 	}
-
+	
 
 	template <class T> inline void XArray<T>::SetAt(index_t index, double val)
-		// This function is specialized separately for complex T
-	{
+	// This function is specialized separately for complex T
+	{ 
 		vector<T>::at(index) = T(val);
 	}
-
-
+	
+	
 	template <class T> inline dcomplex XArray<T>::GetCmplAt(index_t index) const
-		// This function is specialized separately for complex T
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<T>::GetCmplAt (must be complex)");
+	// This function is specialized separately for complex T
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<T>::GetCmplAt (must be complex)"); 	
 	}
-
+	
 
 	template <class T> inline void XArray<T>::SetCmplAt(index_t index, dcomplex val)
-		// This function is specialized separately for complex T
+	// This function is specialized separately for complex T
 	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<T>::SetCmplAt (must be complex)");
+		throw std::invalid_argument("invalid_argument '*this' in XArray<T>::SetCmplAt (must be complex)"); 
 	}
+
 
 	//---------------------------------------------------------------------------
 	//Function XArray<T>::Norm
@@ -482,19 +306,19 @@ namespace xar
 		\exception	std::invalid_argument is thrown if the eMode is unknown or if the requested norm cannot be evalueated for this XArray
 		\return		\a anorm the calculated value of the norm
 		\par		Description:
-			This function can calculate multiple different norms (metrics) of this XArray object (e.g. maximum and minimum
+			This function can calculate multiple different norms (metrics) of this XArray object (e.g. maximum and minimum 
 			value of the elements, RMS metric, etc). The available norms are enumerated by the _eNormID enumerator defined
 			in the XA_ini.h module
 		\par		Example:
 \verbatim
-double dblRMS_metric = myXArray2D.Norm(eNormL2);
+double dblRMS_metric = myXArray2D.Norm(eNormL2); 
 \endverbatim
 	*/
 	template <class T> double XArray<T>::Norm(_eNormID eMode) const
 	{
 		index_t np = vector<T>::size();
 		index_t i;
-		double anorm = 0.0, abra = 0.0;
+		double anorm=0.0, abra=0.0;
 
 		switch (eMode)
 		{
@@ -507,100 +331,100 @@ double dblRMS_metric = myXArray2D.Norm(eNormL2);
 			break;
 		case eNormIndexOfMin: // index-of-min
 			anorm = (*this).front(); abra = 0;
-			for (i = 0; i < np; i++)
-				if (!((*this)[i] >= anorm))
-					if (!((*this)[i] < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)");
+			for (i=0; i<np; i++) 
+				if (!((*this)[i] >= anorm)) 
+					if (!((*this)[i] < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)"); 
 					else { anorm = double((*this)[i]); abra = double(i); }
 			anorm = abra;
 			break;
 		case eNormIndexOfMax: // index-of-max
 			anorm = (*this).front(); abra = 0;
-			for (i = 0; i < np; i++)
-				if (!((*this)[i] <= anorm))
-					if (!((*this)[i] > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)");
+			for (i=0; i<np; i++) 
+				if (!((*this)[i] <= anorm)) 
+					if (!((*this)[i] > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)"); 
 					else { anorm = double((*this)[i]); abra = double(i); }
 			anorm = abra;
 			break;
 		case eNormYMin: // y-min
-			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)"); 
 			break;
 		case eNormYMax: // y-max
-			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)"); 
 			break;
 		case eNormXMin: // x-min
-			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)"); 
 			break;
 		case eNormXMax: // x-max
-			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (no header)"); 
 			break;
 		case eNormMin: // min
 			anorm = (*this).front();
-			for (i = 1; i < np; i++)
+			for (i=1; i<np; i++) 
 				if (!((*this)[i] >= anorm))
-					if (!((*this)[i] < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)");
+					if (!((*this)[i] < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)"); 
 					else anorm = (*this)[i];
 			break;
 		case eNormMax: // max
 			anorm = (*this).front();
-			for (i = 1; i < np; i++)
+			for (i=1; i<np; i++) 
 				if (!((*this)[i] <= anorm))
-					if (!((*this)[i] > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)");
+					if (!((*this)[i] > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)"); 
 					else anorm = (*this)[i];
 			break;
 		case eNormC0: // C0-Norm
 			anorm = fabs((*this).front());
-			for (i = 0; i < np; i++)
-				if (!(fabs((*this)[i]) <= anorm))
-					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)");
+			for (i=0; i<np; i++) 
+				if (!(fabs((*this)[i]) <= anorm)) 
+					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormL1: // l1-Norm (not normalized)
-			for (i = 0; i < np; i++) anorm += fabs((*this)[i]);
+			for (i=0; i<np; i++) anorm += fabs((*this)[i]);
 			break;
 		case eNormL2: // l2-Norm (not normalized)
-			for (i = 0; i < np; i++) anorm += (double)(*this)[i] * (double)(*this)[i];
+			for (i=0; i<np; i++) anorm += (double)(*this)[i] * (double)(*this)[i];
 			anorm = sqrt(anorm);
 			break;
 		case eNormAver: // average
-			for (i = 0; i < np; i++) anorm += (*this)[i];
+			for (i=0; i<np; i++) anorm += (*this)[i];
 			anorm /= np;
 			break;
 		case eNormStdDev: // st.deviation
-			for (i = 0; i < np; i++) abra += (*this)[i];
+			for (i=0; i<np; i++) abra += (*this)[i];
 			abra /= np;
-			for (i = 0; i < np; i++) anorm += ((*this)[i] - abra) * ((*this)[i] - abra);
+			for (i=0; i<np; i++) anorm += ((*this)[i] - abra) * ((*this)[i] - abra);
 			anorm = sqrt(anorm / np);
 			break;
 		case eNormL2N: // l2 (normalized)
-			for (i = 0; i < np; i++) anorm += (double)(*this)[i] * (double)(*this)[i];
+			for (i=0; i<np; i++) anorm += (double)(*this)[i] * (double)(*this)[i];
 			anorm = sqrt(anorm / np);
 			break;
 		case eNormL1N: // l1 (normalized)
-			for (i = 0; i < np; i++) anorm += fabs((*this)[i]);
+			for (i=0; i<np; i++) anorm += fabs((*this)[i]);
 			anorm /= np;
 			break;
 		case eNormEntropy: // entropy
-		{
-			double alog2 = 1.0 / log(2.0);
-			double totI = 0;
-			for (i = 0; i < np; i++)
 			{
-				if ((*this)[i] < 0) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm(eNormEntropy) (negative values)");
-				totI += (*this)[i];
-			}
-			if (totI != 0)
-			{
-				double mlogtotI = -log(totI) * alog2;
-				for (i = 0; i < np; i++)
+				double alog2 = 1.0 / log(2.0);
+				double totI = 0;
+				for (i=0; i<np; i++) 
 				{
-					if ((*this)[i] != 0) anorm += (*this)[i] * (log((double)(*this)[i]) * alog2 + mlogtotI);
+					if ((*this)[i] < 0) throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Norm(eNormEntropy) (negative values)"); 
+					totI += (*this)[i];
 				}
-				anorm /= -totI;
+				if (totI != 0)
+				{
+					double mlogtotI = -log(totI) * alog2;
+					for (i=0; i<np; i++) 
+					{
+						if ((*this)[i] != 0) anorm += (*this)[i] * (log((double)(*this)[i]) * alog2 + mlogtotI);
+					}
+					anorm /= -totI;
+				}
 			}
-		}
-		break;
+			break;
 		default:
-			throw std::invalid_argument("invalid_argument 'eMode' in XArray<T>::Norm");
+			throw std::invalid_argument("invalid_argument 'eMode' in XArray<T>::Norm"); 
 		}
 		return anorm;
 	}
@@ -616,7 +440,7 @@ double dblRMS_metric = myXArray2D.Norm(eNormL2);
 		\param		rXArray another image to be compared to this one
 		\param		dblRelStDevAver	(sigma) relative standard deviation corresponding to average intensity
 		\param		bUsePoissonStat if true, Poisson (photon counting) statistics is used, else Gaussian additive noise implied
-		\exception	std::invalid_argument is thrown if
+		\exception	std::invalid_argument is thrown if 
 		\return		\a chi2 the calculated value of the chi-square distance
 		\par		Description:
 			This function calculates the chi-square distance between two images
@@ -626,24 +450,24 @@ double dblRMS_metric = myXArray2D.Norm(eNormL2);
 			(1/sigma^2/<I0>^2) Sum{ (I1[i]-I0[i])^2 }.
 		\par		Example:
 \verbatim
-double dblChi2 = myXArray2D.Chi2(otherXArray);
+double dblChi2 = myXArray2D.Chi2(otherXArray); 
 \endverbatim
 	*/
 	template <class T> double XArray<T>::Chi2(const XArray<T>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
 	{
-		if (rXArray.size() != vector<T>::size())
-			throw std::invalid_argument("invalid_argument 'rXArray' in XArray<T>::Chi2 (different size)");
+		if (rXArray.size() != vector<T>::size()) 
+			throw std::invalid_argument("invalid_argument 'rXArray' in XArray<T>::Chi2 (different size)"); 				
 		if (!SameHead(rXArray))
-			throw std::invalid_argument("invalid_argument 'rXArray' in XArray<T>::Chi2 (different head)");
+			throw std::invalid_argument("invalid_argument 'rXArray' in XArray<T>::Chi2 (different head)"); 	
 		if (dblRelStDevAver <= 0)
-			throw std::invalid_argument("invalid_argument 'dblRelStDevAver' in XArray<T>::Chi2 (must be positive)");
+			throw std::invalid_argument("invalid_argument 'dblRelStDevAver' in XArray<T>::Chi2 (must be positive)"); 	
 		double chi2 = 0.0, temp;
 		double dblAver = Norm(eNormAver);
 		if (bUsePoissonStat) // Poisson photon statistics
 		{
 			if (Norm(eNormMin) <= 0)
-				throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Chi2 (not all values are positive)");
-			for (index_t i = 0; i < (*this).size(); i++)
+				throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Chi2 (not all values are positive)"); 	
+			for (index_t i=0; i<(*this).size(); i++) 
 			{
 				temp = (*this)[i] - rXArray[i];
 				chi2 += temp * temp / (*this)[i];
@@ -653,8 +477,8 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 		else  // additive Gaussian noise with constant sigma
 		{
 			if (dblAver <= 0)
-				throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Chi2 (average value is not positive)");
-			for (index_t i = 0; i < (*this).size(); i++)
+				throw std::invalid_argument("invalid_argument '*this' in XArray<T>::Chi2 (average value is not positive)"); 	
+			for (index_t i=0; i<(*this).size(); i++) 
 			{
 				temp = (*this)[i] - rXArray[i];
 				chi2 += temp * temp;
@@ -671,25 +495,25 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 	//
 
 	inline double XArray<fcomplex>::GetAt(index_t index) const
-	{
+	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::GetAt (this cannot be complex)");
 	}
 
 
 	inline void XArray<fcomplex>::SetAt(index_t index, double val)
-	{
+	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::SetAt (this cannot be complex)");
 	}
 
 
-	inline double XArray<dcomplex>::GetAt(index_t index) const
-	{
+	inline double XArray<dcomplex>::GetAt(index_t index) const 
+	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::GetAt (this cannot be complex)");
 	}
 
 
 	inline void XArray<dcomplex>::SetAt(index_t index, double val)
-	{
+	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::SetAt (this cannot be complex)");
 	}
 
@@ -702,19 +526,19 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 
 	inline void XArray<fcomplex>::SetCmplAt(index_t index, dcomplex val)
 	{
-		at(index) = fcomplex(val);
+		at(index) = fcomplex(val); 
 	}
 
 
 	inline dcomplex XArray<dcomplex>::GetCmplAt(index_t index) const
 	{
-		return at(index);
+		return at(index); 
 	}
 
 
 	inline void XArray<dcomplex>::SetCmplAt(index_t index, dcomplex val)
 	{
-		at(index) = val;
+		at(index) = val; 
 	}
 
 	//
@@ -724,204 +548,204 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 
 	inline void XArray<fcomplex>::operator^=(fcomplex cxfVal)
 	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::pow((*this)[i], cxfVal);
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::pow((*this)[i], cxfVal);
 	}
 
 
 	inline void XArray<dcomplex>::operator^=(dcomplex cxdVal)
 	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::pow((*this)[i], cxdVal);
+		for (index_t i=0; i< (*this).size(); i++)  (*this)[i] = std::pow((*this)[i], cxdVal);
 	}
 
 
-	inline void XArray<fcomplex>::Abs()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Abs (member function undefined)");
+	inline void XArray<fcomplex>::Abs() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Abs (member function undefined)"); 	
+	}
+	
+
+	inline void XArray<fcomplex>::Abs2() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Abs2 (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Abs2()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Abs2 (member function undefined)");
+	inline void XArray<fcomplex>::Log() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::log((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Log()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::log((*this)[i]);
+	inline void XArray<fcomplex>::Exp() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::exp((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Exp()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::exp((*this)[i]);
+	inline void XArray<fcomplex>::Sin() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::sin((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Sin()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::sin((*this)[i]);
+	inline void XArray<fcomplex>::Cos() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::cos((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Cos()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::cos((*this)[i]);
+	inline void XArray<fcomplex>::Tan() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Tan (member function undefined)"); 		
 	}
 
 
-	inline void XArray<fcomplex>::Tan()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Tan (member function undefined)");
+	inline void XArray<fcomplex>::Asin() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Asin (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Asin()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Asin (member function undefined)");
+	inline void XArray<fcomplex>::Acos() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Acos (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Acos()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Acos (member function undefined)");
+	inline void XArray<fcomplex>::Atan() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Atan (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Atan()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Atan (member function undefined)");
+	inline void XArray<dcomplex>::Abs() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Abs (member function undefined)"); 	
+	}
+	
+
+	inline void XArray<dcomplex>::Abs2() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Abs2 (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Abs()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Abs (member function undefined)");
+	inline void XArray<dcomplex>::Log() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::log((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Abs2()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Abs2 (member function undefined)");
+	inline void XArray<dcomplex>::Exp() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::exp((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Log()
+	inline void XArray<dcomplex>::Sin() 
 	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::log((*this)[i]);
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::sin((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Exp()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::exp((*this)[i]);
+	inline void XArray<dcomplex>::Cos() 
+	{ 
+		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::cos((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Sin()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::sin((*this)[i]);
+	inline void XArray<dcomplex>::Tan() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Tan (member function undefined)"); 		
 	}
 
 
-	inline void XArray<dcomplex>::Cos()
-	{
-		for (index_t i = 0; i < (*this).size(); i++)  (*this)[i] = std::cos((*this)[i]);
+	inline void XArray<dcomplex>::Asin() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Asin (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Tan()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Tan (member function undefined)");
+	inline void XArray<dcomplex>::Acos() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Acos (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Asin()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Asin (member function undefined)");
-	}
-
-
-	inline void XArray<dcomplex>::Acos()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Acos (member function undefined)");
-	}
-
-
-	inline void XArray<dcomplex>::Atan()
-	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Atan (member function undefined)");
+	inline void XArray<dcomplex>::Atan() 
+	{ 
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Atan (member function undefined)"); 	
 	}
 
 
 	inline double XArray<fcomplex>::Norm(_eNormID eMode) const
-		// NOTE: this function must be defined inline in the Array1D.h to be considered by the compiler alongside 
-		// with the default template version of the Norm function
+	// NOTE: this function must be defined inline in the Array1D.h to be considered by the compiler alongside 
+	// with the default template version of the Norm function
 	{
 		index_t  np = size();
 		index_t  i;
-		double anorm = 0.0, abra = 0.0;
+		double anorm=0.0, abra=0.0;
 
 		switch (eMode)
 		{
 		case eNormYMin: //y-min
-			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)"); 
 			break;
 		case eNormYMax: //y-max
-			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)"); 
 			break;
 		case eNormXMin: //x-min
-			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)"); 
 			break;
 		case eNormXMax: //x-max
-			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (no header)"); 
 			break;
 		case eNormMin: //min
 			anorm = fabs((*this).front());
-			for (i = 1; i < np; i++)
-				if (!(fabs((*this)[i]) >= anorm))
-					if (!(fabs((*this)[i]) < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (bad data in array)");
+			for (i=1; i<np; i++) 
+				if (!(fabs((*this)[i]) >= anorm)) 
+					if (!(fabs((*this)[i]) < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormMax: //max
 			anorm = fabs((*this).front());
-			for (i = 1; i < np; i++)
-				if (!(fabs((*this)[i]) <= anorm))
-					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (bad data in array)");
+			for (i=1; i<np; i++) 
+				if (!(fabs((*this)[i]) <= anorm)) 
+					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormC0: //C0-Norm
 			anorm = fabs((*this).front());
-			for (i = 0; i < np; i++)
-				if (!(fabs((*this)[i]) <= anorm))
-					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (bad data in array)");
+			for (i=0; i<np; i++) 
+				if (!(fabs((*this)[i]) <= anorm)) 
+					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormL1: //l1-Norm (not normalized)
-			for (i = 0; i < np; i++) anorm += fabs((*this)[i]);
+			for (i=0; i<np; i++) anorm += fabs((*this)[i]);
 			break;
 		case eNormL2: //l2-Norm (not normalized)
-			for (i = 0; i < np; i++) anorm += (*this)[i].real() * (*this)[i].real() + (*this)[i].imag() * (*this)[i].imag();
+			for (i=0; i<np; i++) anorm += (*this)[i].real() * (*this)[i].real() +  (*this)[i].imag() * (*this)[i].imag();
 			anorm = sqrt(anorm);
 			break;
 		case eNormL2N: //l2 (normalized)
-			for (i = 0; i < np; i++) anorm += (*this)[i].real() * (*this)[i].real() + (*this)[i].imag() * (*this)[i].imag();
+			for (i=0; i<np; i++) anorm += (*this)[i].real() * (*this)[i].real() +  (*this)[i].imag() * (*this)[i].imag();
 			anorm = sqrt(anorm / np);
 			break;
 		case eNormL1N: //l1 (normalized)
-			for (i = 0; i < np; i++) anorm += fabs((*this)[i]);
+			for (i=0; i<np; i++) anorm += fabs((*this)[i]);
 			anorm /= np;
 			break;
 		default:
-			throw std::invalid_argument("invalid_argument 'eMode' in XArray<fcomplex>::Norm");
+			throw std::invalid_argument("invalid_argument 'eMode' in XArray<fcomplex>::Norm"); 
 		}
 		return anorm;
 	}
 
 
 	inline double XArray<dcomplex>::Norm(_eNormID eMode) const
-		// NOTE: this function must be defined inline in the Array1D.h to be considered by the compiler alongside 
-		// with the default template version of the Norm function
+	// NOTE: this function must be defined inline in the Array1D.h to be considered by the compiler alongside 
+	// with the default template version of the Norm function
 	{
 		index_t  np = size();
 		index_t i;
@@ -930,67 +754,67 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 		switch (eMode)
 		{
 		case eNormYMin: //y-min
-			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)"); 
 			break;
 		case eNormYMax: //y-max
-			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)"); 
 			break;
 		case eNormXMin: //x-min
-			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)"); 
 			break;
 		case eNormXMax: //x-max
-			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)");
+			throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (no header)"); 
 			break;
 		case eNormMin: //min
 			anorm = fabs((*this).front());
-			for (i = 1; i < np; i++)
-				if (!(fabs((*this)[i]) >= anorm))
-					if (!(fabs((*this)[i]) < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (bad data in array)");
+			for (i=1; i<np; i++) 
+				if (!(fabs((*this)[i]) >= anorm)) 
+					if (!(fabs((*this)[i]) < anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormMax: //max
 			anorm = fabs((*this).front());
-			for (i = 1; i < np; i++)
-				if (!(fabs((*this)[i]) <= anorm))
-					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (bad data in array)");
+			for (i=1; i<np; i++) 
+				if (!(fabs((*this)[i]) <= anorm)) 
+					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormC0: //C0-Norm
 			anorm = fabs((*this).front());
-			for (i = 0; i < np; i++)
-				if (!(fabs((*this)[i]) <= anorm))
-					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (bad data in array)");
+			for (i=0; i<np; i++) 
+				if (!(fabs((*this)[i]) <= anorm)) 
+					if (!(fabs((*this)[i]) > anorm)) throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Norm (bad data in array)"); 
 					else anorm = fabs((*this)[i]);
 			break;
 		case eNormL1: //l1-Norm (not normalized)
-			for (i = 0; i < np; i++) anorm += fabs((*this)[i]);
+			for (i=0; i<np; i++) anorm += fabs((*this)[i]);
 			break;
 		case eNormL2: //l2-Norm (not normalized)
-			for (i = 0; i < np; i++) anorm += (*this)[i].real() * (*this)[i].real() + (*this)[i].imag() * (*this)[i].imag();
+			for (i=0; i<np; i++) anorm += (*this)[i].real() * (*this)[i].real() +  (*this)[i].imag() * (*this)[i].imag();
 			anorm = sqrt(anorm);
 			break;
 		case eNormL2N: //l2 (normalized)
-			for (i = 0; i < np; i++) anorm += (*this)[i].real() * (*this)[i].real() + (*this)[i].imag() * (*this)[i].imag();
+			for (i=0; i<np; i++) anorm += (*this)[i].real() * (*this)[i].real() +  (*this)[i].imag() * (*this)[i].imag();
 			anorm = sqrt(anorm / np);
 			break;
 		case eNormL1N: //l1 (normalized)
-			for (i = 0; i < np; i++) anorm += fabs((*this)[i]);
+			for (i=0; i<np; i++) anorm += fabs((*this)[i]);
 			anorm /= np;
 			break;
 		default:
-			throw std::invalid_argument("invalid_argument 'eMode' in XArray<dcomplex>::Norm");
+			throw std::invalid_argument("invalid_argument 'eMode' in XArray<dcomplex>::Norm"); 
 		}
 		return anorm;
 	}
 
 	inline double XArray<fcomplex>::Chi2(const XArray<fcomplex>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
 	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Chi2 (member function undefined)");
+		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Chi2 (member function undefined)"); 	
 	}
 
 	inline double XArray<dcomplex>::Chi2(const XArray<dcomplex>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
 	{
-		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Chi2 (member function undefined)");
+		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Chi2 (member function undefined)"); 	
 	}
 
 	inline void XArray<fcomplex>::ThresholdLow(fcomplex tSubtract, fcomplex tThreshold)
@@ -1224,39 +1048,6 @@ Re(C, A);
 
 
 	//---------------------------------------------------------------------------
-	//Function XArray<T>::Re
-	//
-	//	Calculates the real part of a complex XArray object
-	//
-	/*!
-		\brief		Calculates the real part of a complex XArray object
-		\param		C	Input complex XArray object
-		\param		A	Output real XArray object to be made equal to the real part of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
-					called from inside this function
-		\return		\a None
-		\par		Description:
-			This function calculates the real part of every element of a complex XArray object and
-			copies the result into a real XArray object. The head for the output object A is copied
-			from the input object C
-		\par		Example:
-\verbatim
-XArray1D<dcomplex> C(20, dcomplex(1.0, 2.0));
-XArray1D<double> A;
-Re(C, A);
-\endverbatim
-	*/
-	template <class T> XArray<T> Re(const XArray< std::complex<T> >& C)
-	{
-		if (C.GetHeadPtr()) C.GetHeadPtr()->Validate();
-		XArray<T> A(C.size());
-		for (index_t i = 0; i < C.size(); i++) A[i] = std::real(C[i]);
-		A.SetHeadPtr(C.GetHeadPtr() ? C.GetHeadPtr()->Clone() : 0);
-		return A;
-	}
-
-
-	//---------------------------------------------------------------------------
 	//Function XArray<T>::Im
 	//
 	//	Calculates the imaginary part of a complex XArray object
@@ -1451,6 +1242,36 @@ CArg(C, A);
 
 } //namespace xar closed
 
+
+//	TEMPLATE INSTANTIATION
+//
+namespace xar
+{
+
+	template class XArray<float>;
+	template class XArray<double>; 
+	template class XArray<fcomplex>; 
+	template class XArray<dcomplex>;
+	template <class T> XArray<double> Re(const XArray<dcomplex>& C);
+	template <class T> XArray<double> Im(const XArray<dcomplex>& C);
+	template <class T> XArray<float> Re(const XArray<fcomplex>& C);
+	template <class T> XArray<float> Im(const XArray<fcomplex>& C);
+
+	template void MakeComplex(const XArray<double>& A, const XArray<double>& B, XArray<dcomplex>& C, bool bMakePolar);
+	template void MakeComplex(const XArray<float>& A, const XArray<float>& B, XArray<fcomplex>& C, bool bMakePolar);
+	template void MakeComplex(const XArray<double>& A, double b, XArray<dcomplex>& C, bool bMakePolar);
+	template void MultiplyExpiFi(XArray<dcomplex>& C, const XArray<double>& Fi);
+	template void MultiplyExpiFi(XArray<fcomplex>& C, const XArray<float>& Fi);
+	template void Abs2(const XArray<dcomplex>& C, XArray<double>& A);
+	template void Abs2(const XArray<fcomplex>& C, XArray<float>& A);
+	template void Abs(const XArray<dcomplex>& C, XArray<double>& A);
+	template void Re(const XArray<dcomplex>& C, XArray<double>& A);
+	template void Re(const XArray<fcomplex>& C, XArray<float>& A);
+	template void Im(const XArray<fcomplex>& C, XArray<float>& A);
+	template void Im(const XArray<dcomplex>& C, XArray<double>& A);
+
+} //namespace xar closed
+
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
@@ -1459,8 +1280,6 @@ CArg(C, A);
 //---------------------------------------------------------------------------
 //	EXTERNAL FUNCTION PROTOTYPES
 //
-#endif
-#endif	// XARRAY_H
 /////////////////////////////////////////////////////////////////////////////
 //
 //	End of Header File

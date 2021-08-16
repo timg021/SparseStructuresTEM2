@@ -597,29 +597,32 @@ void xar::ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<ve
 }
 
 
-void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, vector<double>& vastigm, vector<Pair>& v2shifts, bool bVerboseOutput)
+void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, vector<Pair>& vastigm, vector<Pair>& v2shifts, bool bVerboseOutput)
 // Reads RELION defocus parameter data from a text file with each line containing 
-// |particle# | filepath | df1 | df2 | shiftx | shifty | rot | tilt | psi |
+// |particle# | filepath | shiftx | shifty | df1 | df2  | astigm | rot | tilt | psi |
 // separated by a single white space and with the new line symbol at the end of each line
 // difile - input file name
-// v2angles - output vector of pairs (z, y') each corresponding to illumination direction defined by the rotation angles around Z and Y' axes
-// vvdefocus - output vector of vectors of pairs (z", d) each containing a rotation angle around Z" axis (illumination axis) and a defocus distance at the angle triplet (z, y', z")
-// vastigm - X-Y astigmatism of the image in Anstroms
+// v2angles - output vector of pairs (z, y') each corresponding to illumination direction defined by the rotation angles around Z and Y' axes in degrees
 // v2shifts - X and Y shift of the image in Angstroms
+// vvdefocus - output vector of vectors of pairs (z", d) each containing a rotation angle around Z" axis (illumination axis) and a defocus distance at the angle triplet (z, y', z")
+// vastigm - astigmatism angle of the image in degrees - see J. Zivanov et al, IUCrJ 7, 2020 (doi.org/10.1107/S2052252520000081)
+//			we assume that the input parameters are: df1 = Z1, df2 = Z2, astigm = phi_A, in the notation of Appendix A of the above paper,
+//			the distances Z1 and Z2 are assumed to be in Angstroms, while the phi_A angle is assumed to be expressed in degrees,
+//			and we transform them on output into: vvdefocus[n][0].b = (Z1 + Z2) / 2, vastigm[n].a = (Z1 - Z2) / 2, vastigm[n].b = phi_A
 // any number of comment lines (starting with //) can be present inside the file, and will be ignored by this function
 // !!!NOTE that this program changes the signs of all angles and XY shifts read from the input file in order to account for the fact that the input file is expected to contain
 // the rotation angles for the coordinate system (around the immobile sample/structure), while we will be rotating the sample/structure instead of the coordinate system
 {
 	char cline[2049];
 	char buffer[1024];
-	double df1, df2, shiftx, shifty, rot, tilt, psi;
+	double df1, df2, phiA, shiftx, shifty, rot, tilt, psi;
 	vector<Pair> vdefocus(1); // vector of defocus distances at a given rotation angle
 
 	FILE* ff0 = fopen(difile.c_str(), "rt");
 	if (!ff0) throw std::exception((string("Error: cannot open input file ") + difile + string(".")).c_str());
 	//fgets(cline, 1024, ff0); // 1st line - comment
 
-	Pair pair, pair1;
+	Pair pair0, pair, pair1;
 	v2angles.resize(0);
 	vvdefocus.resize(0);
 	v2shifts.resize(0);
@@ -632,25 +635,27 @@ void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vec
 		if (!isdigit(cline[0]) && cline[0] != '-' && cline[0] != '+' && cline[0] != '.') // non-commented lines should contain only numbers
 			throw std::exception((string("Error reading input file ") + difile + string(".")).c_str());
 		strtok(cline, "\n");
-		if (sscanf(cline, "%d %s %lg %lg %lg %lg %lg %lg %lg", &nlineTemp, buffer, &df1, &df2, &shiftx, &shifty, &rot, &tilt, &psi) != 9)
+		if (sscanf(cline, "%d %s %lg %lg %lg %lg %lg %lg %lg %lg", &nlineTemp, buffer, &shiftx, &shifty, &df1, &df2, &phiA, &rot, &tilt, &psi) != 10)
 			break; // assume that this is the end of file
 		//if (nlineTemp != nline) std::exception((string("Error reading input file ") + difile + string(" (incorrect particle number).")).c_str());
 
-		vdefocus[0].a = -psi / PI180; vdefocus[0].b = 0.5 * (df1 + df2); 
-		vvdefocus.push_back(vdefocus);
-		vastigm.push_back(0.5 * (df1 - df2));
-		pair.a = -rot / PI180; pair.b = -tilt / PI180;
+		pair.a = -rot; pair.b = -tilt;
 		v2angles.push_back(pair);
+		vdefocus[0].a = -psi; vdefocus[0].b = 0.5 * (df1 + df2);
+		vvdefocus.push_back(vdefocus);
+		pair0.a = 0.5 * (df1 - df2);
+		pair0.b = phiA;
+		vastigm.push_back(pair0);
 		pair1.a = -shiftx; pair1.b = -shifty;
 		v2shifts.push_back(pair1);
 
 		if (bVerboseOutput) printf("\nZ_angle = %g Y'_angle = %g ", -pair.a, -pair.b);
-		if (bVerboseOutput) printf("Z''_angle = %g (degrees), Defocus = %g (A), ", -vdefocus[0].a, vdefocus[0].b);
-		if (bVerboseOutput) printf("Astigmatism = %g (A), X-shift = %g (A), Y_shift = %g (A)", 0.5 * (df1 - df2), -pair1.a, -pair1.b);
+		if (bVerboseOutput) printf("Z''_angle = %g (degrees), (DefocX+DefocY)/2 = %g (A), ", -vdefocus[0].a, vdefocus[0].b);
+		if (bVerboseOutput) printf("(DefocX-DefocY)/2 = %g (A), phiA = %g (deg), X-shift = %g (A), Y-shift = %g (A)", pair0.a, pair0.b, -pair1.a, -pair1.b);
 	}
 	
 	if (nline == 0)
-		throw std::exception((string("Error reading input file ") + difile + string(" (number of entries in a line is not equal to 9).")).c_str());
+		throw std::exception((string("Error reading input file ") + difile + string(" (number of entries in a line is not equal to 10).")).c_str());
 	else
 		printf("\n%zd rotational positions read in total from the input file.", vvdefocus.size());
 

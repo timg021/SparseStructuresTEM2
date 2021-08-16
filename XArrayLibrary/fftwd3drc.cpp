@@ -98,10 +98,10 @@ void Fftwd3drc::PrintComplexArray(const char* message)
 }
 
 
-void Fftwd3drc::InverseLaplacian(xar::XArray3D<double>& xa3, double alpha)
+void Fftwd3drc::InverseMLaplacian(xar::XArray3D<double>& xa3, double alpha)
+// inverse 3D (-Laplacian) via multiplication of the FFT by 4 * PI^2 * (ksi^2 + eta^2 + dzeta^2)
 // alpha is the usual Tikhonov regularization parameter
 {
-	//allocate space for FFT transform and create FFTW plans
 	if (nz != xa3.GetDim1() || ny != xa3.GetDim2() || nx != xa3.GetDim3())
 		throw std::exception("Error: input XArray3D in InverseLaplacian() has wrong dimensions.");
 
@@ -163,9 +163,8 @@ void Fftwd3drc::InverseLaplacian(xar::XArray3D<double>& xa3, double alpha)
 
 
 void Fftwd3drc::GaussFilter(xar::XArray3D<double>& xa3, double sigma)
-// alpha is the usual Tikhonov regularization parameter
+// Convolution with a 3D Gaussian with the standard deviation equal to sigma
 {
-	//allocate space for FFT transform and create FFTW plans
 	if (nz != xa3.GetDim1() || ny != xa3.GetDim2() || nx != xa3.GetDim3())
 		throw std::exception("Error: input XArray3D in GaussFilter() has wrong dimensions.");
 

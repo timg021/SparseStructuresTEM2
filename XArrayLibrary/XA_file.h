@@ -207,7 +207,7 @@ fprintf("a=%d", a);
 	index_t FindRefractiveIndices(const string strMaterialLegendFilename, const vector<float> vEnergies, vector<vector<float> >& vOutDelta, vector<vector<float> >& vOutBeta);
 	index_t ReadSpectrumFile(const string strSpectrumFilename, vector<float>& vOutEnergies, vector<float>& vOutCounts);
 	void ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, bool bVerboseOutput = true);
-	void ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, vector<double>& vastigm, vector<Pair>& v2shifts, bool bVerboseOutput = true);
+	void ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<vector<Pair> >& vvdefocus, vector<Pair>& vastigm, vector<Pair>& v2shifts, bool bVerboseOutput = true);
 	void FileNames(index_t nangles, index_t ndefocus, string filenamebase, vector<string>& output);
 	void FileNames2(vector<index_t> vndefocus, string filenamebase, vector<string>& output);
 

@@ -12,7 +12,10 @@
 		Contains simple helper functions requiring knowledge of both XArray3D<T>
 		object and IXAHWave3D interface (to a Wavehead3D object)
 */
-#pragma once
+
+#ifndef XA_HEAD3_H
+#define XA_HEAD3_H
+
 //---------------------------------------------------------------------------
 //	INCLUDE FILES
 //
@@ -132,3 +135,5 @@ namespace xar
 	}
 
 } // namespace xar closed
+
+#endif // XA_HEAD3_H

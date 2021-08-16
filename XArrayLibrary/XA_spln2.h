@@ -98,6 +98,8 @@ namespace xar
 		void Interpolate(XArray2D<T>& xaResult, index_t iNewDim1, index_t iNewDim2) const;
 		//! Rotates 2D array clockwise around a given point by a given angle 
 		void Rotate(XArray2D<T>& xaResult, double dblTheta, double dblYCentre, double dblXCentre, T Backgr) const;
+		//! Rotates 2D array clockwise around a given point by a given angle and returns the resultant rotated XArray2D<T> object
+		XArray2D<T> Rotate(double dblTheta, double dblYCentre, double dblXCentre, T Backgr) const;
 		//! Creates arrays of grid point positions(coordinates) for image rotation
 		void RotPositions(XArray2D<float>& xaS, XArray2D<float>& xaT, XArray2D<short>& xaJ0, XArray2D<short>& xaI0, double dblTheta, double dblYCentre, double dblXCentre) const;
 		//! Rotates 2D array using existing 2D arrays of rotated grid positions
@@ -420,6 +422,13 @@ template <class T> void xar::XArray2DSpln<T>::Rotate(XArray2D<T>& xaResult, doub
 				t * (s1 * m_rXArray2D[j0][i0+1] + s * m_rXArray2D[j0+1][i0+1]) + m_a05);
 		}
 	}
+}
+
+template <class T> xar::XArray2D<T> xar::XArray2DSpln<T>::Rotate(double dblTheta, double dblYCentre, double dblXCentre, T Backgr) const
+{
+	xar::XArray2D<T> xaResult;
+	Rotate(xaResult, dblTheta, dblYCentre, dblXCentre, Backgr);
+	return xaResult; // relying on move constructor or assignment to eliminate copying of xaResult upon the return
 }
 
 

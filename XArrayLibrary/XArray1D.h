@@ -69,12 +69,14 @@ namespace xar
 		XArray1D(void) {}
 		//! Constructor with a predefined size
 		explicit XArray1D(index_t NumPoints,  T tVal = T()) : XArray<T>(NumPoints, tVal) {} 
-		//! Promotion from XArrayBase
-		explicit XArray1D(const XArrayBase<T>& rXArrayBase) : XArray<T>(rXArrayBase) {}
+		//! Promotion from vector
+		explicit XArray1D(const vector<T>& rvector) : XArray<T>(rvector) {}
 		//! Construction from a raw memory buffer
 		XArray1D(T* ptBufBegin, T* ptBufEnd) : XArray<T>(ptBufBegin, ptBufEnd) {} 
 		//! Copy constructor
 		XArray1D(const XArray1D<T>& rXArray1D) : XArray<T>(rXArray1D) {}
+		//! Move constructor
+		XArray1D(XArray1D<T>&& rXArray1D) : XArray<T>(std::move(rXArray1D)) {}
 		//! Destructor (head is deleted in the base class)
 		~XArray1D(void) {}
 
@@ -82,8 +84,12 @@ namespace xar
 	public:
 		//! Makes this array a (deep) copy of the rXArray1D
 		void operator=(const XArray1D<T>& rXArray1D) { XArray<T>::operator=(rXArray1D); }
-		//! Makes this array a (deep) copy of the rXArrayBase and sets the head pointer to 0
-		void operator=(const XArrayBase<T>& rXArrayBase) { XArray<T>::operator=(rXArrayBase); }
+		//! Move assignment operator from another XArray1D
+		void operator=(XArray1D<T>&& rXArray1D) noexcept { XArray<T>::operator=(std::move(rXArray1D)); }
+		//! Makes this array a (deep) copy of the rvector and sets the head pointer to 0
+		void operator=(const vector<T>& rvector) { XArray<T>::operator=(rvector); }
+		//! Move assignment operator from another vector<T>
+		void operator=(vector<T>&& rvector) { XArray<T>::operator=(std::move(rvector)); }
 
 	// Attributes
 	public:
@@ -93,9 +99,9 @@ namespace xar
 	// Operations
 	public:
 		//! Accepts an external memory buffer with its contents and makes it the internal 1D array (head does not change)
-		void AcceptMemBuffer(T* ptBufBegin, index_t BufSize);
+		//void AcceptMemBuffer(T* ptBufBegin, index_t BufSize);
 		//! Relinquishes the responsibility for the memory area occupied by the internal 1D array  (head is deleted)
-		void ReleaseMemBuffer();
+		//void ReleaseMemBuffer();
 		//! Changes the size of the array and fills the NEW elements with a given value (head is not affected)
 		//  Call the non-member function ResizeH if the head should be resized as well
 		void Resize(index_t NumPoints, T tVal = T());
@@ -136,19 +142,19 @@ namespace xar
 	//***** member functions
 
 	//! Accepts an external memory buffer with its contents and makes it the internal 1D array (head does not change)
-	template <class T> void XArray1D<T>::AcceptMemBuffer(T* ptBufBegin, index_t BufSize)
-	{
-		if (BufSize < 0)
-			throw std::invalid_argument("invalid_argument 'BufSize' in XArray1D<T>::AcceptMemBuffer (negative dimension)"); 
-		XArrayBase<T>::acceptMemBuffer(ptBufBegin, BufSize);
-	}
+	//template <class T> void XArray1D<T>::AcceptMemBuffer(T* ptBufBegin, index_t BufSize)
+	//{
+	//	if (BufSize < 0)
+	//		throw std::invalid_argument("invalid_argument 'BufSize' in XArray1D<T>::AcceptMemBuffer (negative dimension)"); 
+	//	acceptMemBuffer(ptBufBegin, BufSize);
+	//}
 
 	//! Relinquishes the responsibility for the memory area occupied by the internal 1D array (head is deleted)
-	template <class T> void XArray1D<T>::ReleaseMemBuffer() 
-	{ 
-		XArray<T>::SetHeadPtr(0);
-		XArrayBase<T>::releaseMemBuffer(); 
-	}
+	//template <class T> void XArray1D<T>::ReleaseMemBuffer() 
+	//{ 
+	//	XArray<T>::SetHeadPtr(0);
+	//	releaseMemBuffer(); 
+	//}
 
 	//! Changes the size of the array and fills the NEW elements with a given value (head is not affected).
 	//  Call the non-member function ResizeH if the head should be resized as well
@@ -156,7 +162,7 @@ namespace xar
 	{ 
 		if (newSize < 0)
 			throw std::invalid_argument("invalid_argument 'newSize' in XArray1D<T>::Resize (negative dimension)"); 
-		XArrayBase<T>::resize(newSize, val);
+		(*this).resize(newSize, val);
 	}
 
 	//! Changes the size of the array (head is not affected).
@@ -172,13 +178,13 @@ namespace xar
 	template <class T> void XArray1D<T>::Truncate()
 	{
 		XArray<T>::SetHeadPtr(0);
-		XArrayBase<T>::truncate();
+		(*this).clear();
 	}
 
 	//! Swaps XArrays and their heads
 	template <class T> void XArray1D<T>::Swap(XArray<T>& rXArray)
 	{
-		XArrayBase<T>::swap(rXArray);
+		swap(rXArray);
 		IXAHead* temp =  XArray<T>::GetHeadPtr() ? XArray<T>::GetHeadPtr()->Clone() : 0;
 		IXAHead* temp1 = rXArray.XArray<T>::GetHeadPtr() ? rXArray.XArray<T>::GetHeadPtr()->Clone() : 0;
 		XArray<T>::SetHeadPtr(temp1); rXArray.XArray<T>::SetHeadPtr(temp);
@@ -188,7 +194,7 @@ namespace xar
 	//  Call the non-member function GetSubarrayH if the head should be returned as well
 	template <class T> void XArray1D<T>::GetSubarray(index_t iBegin, index_t iEnd, XArray1D<T>& rDestSubXArray) const
 	{
-		if (iBegin >= iEnd || iEnd > XArrayBase<T>::size())
+		if (iBegin >= iEnd || iEnd > (*this).size())
 			throw std::invalid_argument("invalid argument 'iBegin or iEnd' in XArray1D<T>::GetSubarray");
 		index_t iSize = iEnd - iBegin;
 		if (rDestSubXArray.size() != iSize) rDestSubXArray.resize(iSize);
@@ -198,7 +204,7 @@ namespace xar
 	//! Inserts a sub-XArray1D
 	template <class T> void XArray1D<T>::SetSubarray(const XArray1D<T>& rSrcSubXArray, index_t iBegin)
 	{
-		if (iBegin + rSrcSubXArray.size() > XArrayBase<T>::size())
+		if (iBegin + rSrcSubXArray.size() > (*this).size())
 			throw std::invalid_argument("invalid argument 'iBegin or rSrcSubXArray' in XArray1D<T>::SetSubarray");
 		for (index_t i = 0; i < rSrcSubXArray.size(); i++) (*this)[iBegin + i] = rSrcSubXArray[i];
 		// heads are ignored

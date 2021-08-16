@@ -116,7 +116,7 @@ namespace xar
 		//! Calculates 2D Fresnel integral
 		void Fresnel(double dblDistance, bool bCheckValidity = true, double q2max = -1.0, double C3 = 0.0, double C5 = 0.0);
 		//! Calculates 2D Fresnel integral with possible astigmatism
-		void FresnelA(double dblDistanceX, double dblDistanceY, bool bCheckValidity = true, double q2max = -1.0, double C3 = 0.0, double C5 = 0.0);
+		void FresnelA(double dblDistance, double a1, double a2, bool bCheckValidity = true, double q2max = -1.0, double C3 = 0.0, double C5 = 0.0);
 		//! Calculates 2D Fresnel integral for long propagation distances
 		void FresnelFar(double dblDistance, bool bCheckValidity = true);
 
@@ -467,7 +467,7 @@ InterfaceFFT2D.Fresnel(1.e+6); // calculate free space propagation (by 1 m, if u
 //
 template <class T> void xar::XArray2DFFT<T>::Fresnel(double dblDistance, bool bCheckValidity, double q2max, double C3, double C5)
 {
-	FresnelA(dblDistance, dblDistance, bCheckValidity, q2max, C3, C5);
+	FresnelA(dblDistance, 0, 0, bCheckValidity, q2max, C3, C5);
 }
 
 
@@ -478,8 +478,9 @@ template <class T> void xar::XArray2DFFT<T>::Fresnel(double dblDistance, bool bC
 //
 /*!
 	\brief		Calculates 2D Fresnel integral with possible astigamtism
-	\param		dblDistanceX Propagation distance corresponding to x (in the same units as used in the Wavehead2D)
-	\param		dblDistanceY Propagation distance corresponding to y (in the same units as used in the Wavehead2D)
+	\param		dblDistance propagation distance (in the same units as used in the Wavehead2D); in the presence of astigmatism, it is equal to (dblDistanceX + dblDistanceY) / 2
+	\param		Z1mZ2d2 astigmatism parameter (dblDistanceX - dblDistanceY) / 2 (in the same units as used in the Wavehead2D)
+	\param		phiA astigmatism angle (with the X axis, counterclockwise) (in radians)
 	\param		bCheckValidity	Determines the validity of the used implementation for given parameters
 	\param		q2max Defines the optional bandwidth limit (q2max <= 0.0 is interepreted as infinite aperture)
 	\param		C3 optional 3rd-order spherical aberration (its dimensionality is the same as for dblDistanceX and Y)
@@ -508,9 +509,9 @@ XArray2DFFT<dcomplex> InterfaceFFT2D(C0); // create a 2D FFT interface to the in
 InterfaceFFT2D.Fresnel2(1.e+6, 1.1e+6); // calculate free space propagation (by 1 m for x and 1.1 m for y, if units are microns)
 \endverbatim
 */
-template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistanceX, double dblDistanceY, bool bCheckValidity, double q2max, double C3, double C5)
+template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double Z1mZ2d2, double phiA, bool bCheckValidity, double q2max, double C3, double C5)
 {
-	if (dblDistanceX == 0 && dblDistanceY == 0) return;
+	if (dblDistance == 0) return;
 
 	index_t nx = m_rXArray2D.GetDim2();
 	index_t ny = m_rXArray2D.GetDim1();
@@ -539,7 +540,9 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistanceX, doubl
 	index_t ny2 = ny * 2;
 	index_t nxy = nx * ny;
 	index_t nxy2 = nxy * 2;
+	double xap = abs(xhi - xlo);
 	double xap2 = (xhi - xlo) * (xhi - xlo);
+	double yap = abs(yhi - ylo);
 	double yap2 = (yhi - ylo) * (yhi - ylo);
 	double xst2 = xst * xst;
 	double yst2 = yst * yst;
@@ -550,8 +553,8 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistanceX, doubl
 		throw std::runtime_error("runtime_error in XArray2DFFT<T>::FresnelA (evanescent waves present)");
 
 	//  Fresnel numbers NFx(y)=a(b)^2/wl/abs(dblDistance)=',fnumx,fnumy
-	double absdistanceX = fabs(dblDistanceX);
-	double absdistanceY = fabs(dblDistanceY);
+	double absdistanceX = fabs(dblDistance + Z1mZ2d2);
+	double absdistanceY = fabs(dblDistance - Z1mZ2d2);
 	double fnumx = xap2 / absdistanceX / wl;
 	double fnumy = yap2 / absdistanceY / wl;
 	if (bCheckValidity && (fnumx < 10 || fnumy < 10))
@@ -569,170 +572,116 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistanceX, doubl
 	//********* Multiplying F[u] by the Fresnel_propagator
 
 	index_t k, kj;
+	bool bInfAper(q2max <= 0); // infinite aperture
 	bool bC35((C3 != 0) || (C5 != 0));
 	double eta2, csi2, q2;
+	double dcsi = 1.0 / xap;
 	double dcsi2 = 1.0 / xap2;
+	double deta = 1.0 / yap;
 	double deta2 = 1.0 / yap2;
-	//double dtemp = dblDistance / wl - floor(dblDistance / wl);
-	//dcomplex fac1 = std::exp(dcomplex(0.0, 1.0) * PI * 2.0 * dtemp);
-	dcomplex fac1 = dcomplex(0.0, 1.0) * PI * (dblDistanceX + dblDistanceY) / wl;
-	dcomplex fac2x = -dcomplex(0.0, 1.0) * PI * wl * dblDistanceX;
-	dcomplex fac2y = -dcomplex(0.0, 1.0) * PI * wl * dblDistanceY;
+	dcomplex fac1 = 2.0 * dcomplex(0.0, 1.0) * PI * dblDistance / wl;
+	double Z1 = dblDistance + Z1mZ2d2;
+	double Z2 = dblDistance - Z1mZ2d2;
+	double cosphiA = cos(phiA);
+	double sinphiA = sin(phiA);
+	double sin2phiA = 2.0 * sinphiA * cosphiA;
+	dcomplex fac2x = -dcomplex(0.0, 1.0) * PI * wl * (Z1 * cosphiA * cosphiA + Z2 * sinphiA * sinphiA);
+	dcomplex fac2y = -dcomplex(0.0, 1.0) * PI * wl * (Z2 * cosphiA * cosphiA + Z1 * sinphiA * sinphiA);
+	dcomplex facxy = -dcomplex(0.0, 1.0) * PI * wl * Z1mZ2d2 * sin2phiA;
+	facxy = facxy * deta * dcsi;
 	dcomplex fac3 = -dcomplex(0.0, 1.0) * PI * pow(wl, 3) / 2.0 * C3;
 	dcomplex fac5 = -dcomplex(0.0, 1.0) * PI * pow(wl, 5) / 3.0 * C5;
-	dcomplex ctemp, eta2fac2x, fac2a;
+	dcomplex ctemp, etafacxy, eta2fac2y, fac2a;
 
-	if (q2max > 0)
+	for (long i = -long(nyd2); i < 0; i++)
 	{
-		for (long i = -long(nyd2); i < 0; i++)
+		kj = nxy2 + nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y;
+		for (long j = -long(nxd2); j < 0; j++)
 		{
-			kj = nxy2 + nx2 * i + nx2;
-			eta2 = deta2 * i * i;
-			eta2fac2x = eta2 * fac2x;
-			for (long j = -long(nxd2); j < 0; j++)
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
-				if (q2 < q2max)
-				{
-					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-					u[k] = T(std::real(ctemp));
-					u[k + 1] = T(std::imag(ctemp));
-				}
-				else
-				{
-					u[k] = T(0);
-					u[k + 1] = T(0);
-				}
+				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+				u[k] = T(std::real(ctemp));
+				u[k + 1] = T(std::imag(ctemp));
 			}
-			kj = nxy2 + nx2 * i;
-			for (long j = 0; j < long(nxd2); j++)
+			else
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
-				if (q2 < q2max)
-				{
-					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-					u[k] = T(std::real(ctemp));
-					u[k + 1] = T(std::imag(ctemp));
-				}
-				else
-				{
-					u[k] = T(0);
-					u[k + 1] = T(0);
-				}
+				u[k] = T(0);
+				u[k + 1] = T(0);
 			}
 		}
-		for (long i = 0; i < long(nyd2); i++)
+		kj = nxy2 + nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
 		{
-			kj = nx2 * i + nx2;
-			eta2 = deta2 * i * i;
-			eta2fac2x = eta2 * fac2x;
-			for (long j = -long(nxd2); j < 0; j++)
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
-				if (q2 < q2max)
-				{
-					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-					u[k] = T(std::real(ctemp));
-					u[k + 1] = T(std::imag(ctemp));
-				}
-				else
-				{
-					u[k] = T(0);
-					u[k + 1] = T(0);
-				}
+				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+				u[k] = T(std::real(ctemp));
+				u[k + 1] = T(std::imag(ctemp));
 			}
-			kj = nx2 * i;
-			for (long j = 0; j < long(nxd2); j++)
+			else
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
-				if (q2 < q2max)
-				{
-					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-					u[k] = T(std::real(ctemp));
-					u[k + 1] = T(std::imag(ctemp));
-				}
-				else
-				{
-					u[k] = T(0);
-					u[k + 1] = T(0);
-				}
+				u[k] = T(0);
+				u[k + 1] = T(0);
 			}
 		}
 	}
-	else
+	for (long i = 0; i < long(nyd2); i++)
 	{
-		for (long i = -long(nyd2); i < 0; i++)
+		kj = nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y;
+		for (long j = -long(nxd2); j < 0; j++)
 		{
-			kj = nxy2 + nx2 * i + nx2;
-			eta2 = deta2 * i * i;
-			eta2fac2x = eta2 * fac2x;
-			for (long j = -long(nxd2); j < 0; j++)
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
 				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
 				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
 				u[k] = T(std::real(ctemp));
 				u[k + 1] = T(std::imag(ctemp));
 			}
-			kj = nxy2 + nx2 * i;
-			for (long j = 0; j < long(nxd2); j++)
+			else
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
-				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-				u[k] = T(std::real(ctemp));
-				u[k + 1] = T(std::imag(ctemp));
+				u[k] = T(0);
+				u[k + 1] = T(0);
 			}
 		}
-		for (long i = 0; i < long(nyd2); i++)
+		kj = nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
 		{
-			kj = nx2 * i + nx2;
-			eta2 = deta2 * i * i;
-			eta2fac2x = eta2 * fac2x;
-			for (long j = -long(nxd2); j < 0; j++)
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
 				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
 				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
 				u[k] = T(std::real(ctemp));
 				u[k + 1] = T(std::imag(ctemp));
 			}
-			kj = nx2 * i;
-			for (long j = 0; j < long(nxd2); j++)
+			else
 			{
-				k = kj + 2 * j;
-				csi2 = dcsi2 * j * j;
-				fac2a = eta2fac2x + csi2 * fac2y;
-				q2 = csi2 + eta2;
-				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-				u[k] = T(std::real(ctemp));
-				u[k + 1] = T(std::imag(ctemp));
+				u[k] = T(0);
+				u[k + 1] = T(0);
 			}
 		}
 	}
