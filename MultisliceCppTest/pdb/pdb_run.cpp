@@ -255,11 +255,11 @@ int main(int argc, char* argv[])
 					ReadRelionDefocusParamsFile(pdbfile, v2angles, vvdefocus, vastigm, v2shifts, false);
 				else
 				{
-					printf("\n!!!Error: orientation text file can only have .txt or .RELLION filename extension.");
+					printf("\n!!!Error: orientation text file can only have .txt or .RELLIONNEW filename extension.");
 					return -1;
 				}
 		}
-		catch (std::exception& E)
+		catch (std::runtime_error& E)
 		{
 			printf("\n\n!!!Exception: %s\n", E.what());
 			return -1;
@@ -308,7 +308,7 @@ int main(int argc, char* argv[])
 	// optionally add carbon support layer
 	if (cThick > 0)
 	{
-		unsigned long iseed = abs((long)time(NULL));
+		unsigned long iseed = std::abs((long)time(NULL));
 		int natoms0 = pd.natoms;
 		int ntotal = AddCarbon(cThick, cWidth, pd, &iseed, xmin, xmax, ymin, ymax, zmin, zmax);
 		printf("\nThis program has added a carbon support layer with %d atoms.", ntotal - natoms0);

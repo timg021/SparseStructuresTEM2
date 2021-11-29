@@ -269,7 +269,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 		//cin >> filein;
 		//filein = "1grl.xyz";
 		if (sscanf(params[0].data(), "%s %s", chaa, cinarg) != 2)
-			throw std::exception("Error reading line 1 of input parameter array.");
+			throw std::runtime_error("Error reading line 1 of input parameter array.");
 		filein = cinarg;
 
 		/*  get simulation options */
@@ -281,101 +281,101 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 			//if( ncellz < 1 ) ncellz = 1;
 			//ncellx = 1; ncelly = 1; ncellz = 1;
 		if (sscanf(params[1].data(), "%s %d %d %d", chaa, &ncellx, &ncelly, &ncellz) != 4)
-			throw std::exception("Error reading line 2 of input parameter array.");
+			throw std::runtime_error("Error reading line 2 of input parameter array.");
 
 		//cout << "Name of file to get binary output of multislice result:" << endl;
 		//cin.getline( fileout, NCMAX );   //  ????
 		//cin >> fileout ;
 		//fileout = "1grl.tif";
 		//if (sscanf(params[2].data(), "%s %s", chaa, cinarg) != 2)
-		//	throw std::exception("Error reading line 3 of input parameter array.");
+		//	throw std::runtime_error("Error reading line 3 of input parameter array.");
 		//fileout = cinarg;
 
 		//lpartl = askYN("Do you want to include partial coherence");
 		//lpartl = 0;
 		if (sscanf(params[3].data(), "%s %d", chaa, &lpartl) != 2)
-			throw std::exception("Error reading line 4 of input parameter array.");
+			throw std::runtime_error("Error reading line 4 of input parameter array.");
 		if (sscanf(params[4].data(), "%s %g %g", chaa, &acmin, &acmax) != 3)
-			throw std::exception("Error reading line 5 of input parameter array.");
+			throw std::runtime_error("Error reading line 5 of input parameter array.");
 		if (sscanf(params[5].data(), "%s %g %g", chaa, &Cs3, &Cs5) != 3)
-			throw std::exception("Error reading line 6 of input parameter array.");
+			throw std::runtime_error("Error reading line 6 of input parameter array.");
 		if (sscanf(params[6].data(), "%s %g %g %g", chaa, &df0, &sigmaf, &dfdelt) != 4)
-			throw std::exception("Error reading line 7 of input parameter array.");
+			throw std::runtime_error("Error reading line 7 of input parameter array.");
 		if (sscanf(params[7].data(), "%s %g", chaa, &aobj) != 2)
-			throw std::exception("Error reading line 8 of input parameter array.");
+			throw std::runtime_error("Error reading line 8 of input parameter array.");
 		aobj = (float)fabs(aobj * 0.001F);
 		if (sscanf(params[8].data(), "%s %d", chaa, &lstart) != 2)
-			throw std::exception("Error reading line 9 of input parameter array.");
+			throw std::runtime_error("Error reading line 9 of input parameter array.");
 		if (sscanf(params[9].data(), "%s %s", chaa, cinarg) != 2)
-			throw std::exception("Error reading line 10 of input parameter array.");
+			throw std::runtime_error("Error reading line 10 of input parameter array.");
 		filestart = cinarg;
 		if (sscanf(params[10].data(), "%s %g", chaa, &v0) != 2)
-			throw std::exception("Error reading line 11 of input parameter array.");
+			throw std::runtime_error("Error reading line 11 of input parameter array.");
 		if (sscanf(params[11].data(), "%s %d %d", chaa, &nx, &ny) != 3)
-			throw std::exception("Error reading line 12 of input parameter array.");
+			throw std::runtime_error("Error reading line 12 of input parameter array.");
 		if (sscanf(params[12].data(), "%s %g %g", chaa, &ctiltx, &ctilty) != 3)
-			throw std::exception("Error reading line 13 of input parameter array.");
+			throw std::runtime_error("Error reading line 13 of input parameter array.");
 		if (sscanf(params[13].data(), "%s %lg", chaa, &deltaz) != 2)
-			throw std::exception("Error reading line 14 of input parameter array.");
+			throw std::runtime_error("Error reading line 14 of input parameter array.");
 		if (sscanf(params[14].data(), "%s %d", chaa, &lbeams) != 2)
-			throw std::exception("Error reading line 15 of input parameter array.");
+			throw std::runtime_error("Error reading line 15 of input parameter array.");
 		if (sscanf(params[15].data(), "%s %s", chaa, cinarg) != 2)
-			throw std::exception("Error reading line 16 of input parameter array.");
+			throw std::runtime_error("Error reading line 16 of input parameter array.");
 		filebeam = cinarg;
 		if (sscanf(params[16].data(), "%s %d", chaa, &nbout) != 2)
-			throw std::exception("Error reading line 17 of input parameter array.");
+			throw std::runtime_error("Error reading line 17 of input parameter array.");
 		if (sscanf(params[17].data(), "%s %d", chaa, &lwobble) != 2)
-			throw std::exception("Error reading line 18 of input parameter array.");
+			throw std::runtime_error("Error reading line 18 of input parameter array.");
 		if (lwobble != 0) lwobble = 1;
 		if (sscanf(params[18].data(), "%s %g", chaa, &temperature) != 2)
-			throw std::exception("Error reading line 19 of input parameter array.");
+			throw std::runtime_error("Error reading line 19 of input parameter array.");
 		if (sscanf(params[19].data(), "%s %d", chaa, &nwobble) != 2)
-			throw std::exception("Error reading line 20 of input parameter array.");
+			throw std::runtime_error("Error reading line 20 of input parameter array.");
 		//!!! TEG NOTE: be careful about this parameter: even though this module can be called to calculate a single configuration,
 		//it needs to know whether multiple configurations are being calculated by the controlling module (MultisliceK.cpp).
 		//if lwobble == 1 and nwobble == 1, the code below will used the exponential model of the DW factor, instead of
 		//calculating multiple configurations
 		//if (sscanf(params[20].data(), "%s %d", chaa, &iseed1) != 2) // this is not used any more
-		//	throw std::exception("Error reading line 21 of input parameter array.");
+		//	throw std::runtime_error("Error reading line 21 of input parameter array.");
 		if (sscanf(params[21].data(), "%s %d", chaa, &lcross) != 2)
-			throw std::exception("Error reading line 22 of input parameter array.");
+			throw std::runtime_error("Error reading line 22 of input parameter array.");
 		if (sscanf(params[22].data(), "%s %s", chaa, cinarg) != 2)
-			throw std::exception("Error reading line 23 of input parameter array.");
+			throw std::runtime_error("Error reading line 23 of input parameter array.");
 		filecross = cinarg;
 		if (sscanf(params[23].data(), "%s %g", chaa, &ycross) != 2)
-			throw std::exception("Error reading line 24 of input parameter array.");
+			throw std::runtime_error("Error reading line 24 of input parameter array.");
 
 		if (sscanf(params[24].data(), "%s %lf %lf", chaa, &angleZ, &angleY) != 3)
-			throw std::exception("Error reading line 25 of input parameter array.");
+			throw std::runtime_error("Error reading line 25 of input parameter array.");
 
 		if (sscanf(params[25].data(), "%s %d", chaa, &nmode) != 2)
-			throw std::exception("Error reading line 26 of input parameter array.");
+			throw std::runtime_error("Error reading line 26 of input parameter array.");
 		//if (sscanf(params[26].data(), "%s %g %g %g", chaa, &defocus_min, &defocus_max, &defocus_step) != 4)
-		//	throw std::exception("Error reading line 27 of input parameter array.");
+		//	throw std::runtime_error("Error reading line 27 of input parameter array.");
 		if (sscanf(params[27].data(), "%s %d", chaa, &noutput) != 2)
-			throw std::exception("Error reading line 28 of input parameter array.");
+			throw std::runtime_error("Error reading line 28 of input parameter array.");
 		bool boutTIFF;
 		if (noutput == 0 || noutput == 1 || noutput == 3)
 		{
 			if (xar::GetFileExtension(fileout[0]) == string(".TIFF") || xar::GetFileExtension(fileout[0]) == string(".TIF")) 
 				boutTIFF = true;
 			else 
-				if (xar::GetFileExtension(fileout[0]) == string(".GRD")) boutTIFF = false; else throw std::exception("Error: incorrect filename extension.");
+				if (xar::GetFileExtension(fileout[0]) == string(".GRD")) boutTIFF = false; else throw std::runtime_error("Error: incorrect filename extension.");
 		}
 		else
 		{
 			if (noutput == 2)
 			{
-				if (xar::GetFileExtension(fileout[0]) != string(".GRC")) throw std::exception("Error: incorrect filename extension.");
+				if (xar::GetFileExtension(fileout[0]) != string(".GRC")) throw std::runtime_error("Error: incorrect filename extension.");
 			}
-			else throw std::exception("Error: incorrect output format.");
+			else throw std::runtime_error("Error: incorrect output format.");
 		}
 
 		if (sscanf(params[28].data(), "%s %d", chaa, &nfftwinit) != 2)
-			throw std::exception("Error reading line 29 of input parameter array.");
+			throw std::runtime_error("Error reading line 29 of input parameter array.");
 
 		if (sscanf(params[29].data(), "%s %g", chaa, &iceThick) != 2)
-			throw std::exception("Error reading line 30 of input parameter array.");
+			throw std::runtime_error("Error reading line 30 of input parameter array.");
 
 		//fclose(ff0);
 		//cout << "Input parameter file has been read successfully!\n";
@@ -435,7 +435,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 
 		//@@@@@ start TEG code
 		if (lwobble == 1 && nwobble > 1 && !(noutput == 0 || noutput == 3))
-			throw std::exception("Only intensity or 3D potential output is allowed in the presence of thermal vibrations with multiple configurations.");
+			throw std::runtime_error("Only intensity or 3D potential output is allowed in the presence of thermal vibrations with multiple configurations.");
 		if (lstart == 1) {
 			//cout << "Name of file to start from:" << endl;
 			//cin >> filestart;
@@ -510,9 +510,9 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 			auto dtn_nano = std::chrono::duration_cast<std::chrono::nanoseconds>(dtn);
 			ltime = (long)dtn_nano.count();
 			//ltime = (long)time(NULL);
-			iseed = abs(ltime);
+			iseed = std::abs(ltime);
 			//printf("\n@@@@@ iseed = %ld", iseed);
-			iseed2 = -abs(ltime); // gasdev requires a negative integer seed for initialization, which should not be changed between successive calls
+			iseed2 = -std::abs(ltime); // gasdev requires a negative integer seed for initialization, which should not be changed between successive calls
 		}
 		else temperature = 0.0F;
 
@@ -677,7 +677,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 				zzz = zc + (-x[k] + xc) * sinY + (z[k] - zc) * cosY;
 				x[k] = xxx; z[k] = zzz;
 			}
-
+			#if(0)
 			// rotation around Z axis (by the Z" rotation angle)
 			if (defocus[jjj].a != 0)
 			{
@@ -749,7 +749,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 					wobble[k] = vwobbletemp[k];
 				}
 			}
-			
+			#endif
 			//@@@@@ end TEG code
 
 			/*  calculate the total specimen volume and echo */
@@ -782,12 +782,12 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 	#endif	
 			//@@@@@ start TEG code mods
 			if(lwobble == 1 && wmin == 0 && wmax == 0)
-				throw std::exception("Input XYZ file does not contain thermal vibrations for atoms.");
+				throw std::runtime_error("Input XYZ file does not contain thermal vibrations for atoms.");
 			// force max dimensions along xzy axes to be equal to the defined CT sample qube side length
 			if (xmin < 0 || ymin < 0 || zmin < 0)
-				throw std::exception("Error: xmin, ymin or zmin < 0 in the XYZ file.");
+				throw std::runtime_error("Error: xmin, ymin or zmin < 0 in the XYZ file.");
 			if (xmax > ctblength || ymax > ctblength || zmax > ctblength)
-				throw std::exception("Error: xmax, ymax or zmax in the XYZ file is larger than the defined CT sample qube side length.");
+				throw std::runtime_error("Error: xmax, ymax or zmax in the XYZ file is larger than the defined CT sample qube side length.");
 			xmin = 0; xmax = ctblength;
 			ymin = 0; ymax = ctblength;
 			zmin = 0; zmax = ctblength;
@@ -797,7 +797,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 			if (iceThick > 0)
 			{
 				if (iceThick < ctblength) 
-					throw std::exception("Error: ice thickness is less than the defined CT sample qube side length.");
+					throw std::runtime_error("Error: ice thickness is less than the defined CT sample qube side length.");
 				else 
 				{
 					natom = AddIce(iceThick, ctblength, natom, &Znum, &x, &y, &z, &occ, &wobble, wobbleaver, &iseed);
@@ -988,11 +988,12 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 
 					// propagate
 					if (defocus[jjj].b == 0 && (k2maxo != 0 || C3 != 0 || C5 != 0))
-						xafft.Fresnel(double(wavlen), false, double(k2maxo), C3, C5); // fake propagation is needed in order to enforce the spatial Fourier frequency cutoff or aberrations
+						xafft.Fresnel(double(wavlen), true, double(k2maxo), C3, C5); // fake propagation is needed in order to enforce the spatial Fourier frequency cutoff or aberrations
 					else
-						xafft.FresnelA(defocus[jjj].b, astigm.a, astigm.b * pi180, false, double(k2maxo), C3, C5); // propagate to the current defocus distance
+						xafft.FresnelA(defocus[jjj].b - 0.5 * ctblengthz, astigm.a, astigm.b * pi180, true, double(k2maxo), C3, C5); // propagate to the current defocus distance
+					    //xafft.FresnelAold(defocus[jjj].b - astigm.a, defocus[jjj].b + astigm.a, true, double(k2maxo), C3, C5);
 
-					/*
+					#if(1)
 					// old code, implementing Z" rotation and XY shifts for the defocused images
 					// the new code instead applies Z" rotation and XY shifts to the molecule (XYZ structure) prior to the illumination
 					// the new code is more accurate in principle, but is slower (in the case of multiple Z" rotations / defocus distances per illumination direction)
@@ -1022,7 +1023,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 						}
 						xar::MakeComplex(ampRe, ampIm, camp, false);
 					}
-					*/
+					#endif					
 				}
 				else // evaluate electrostatic potential
 				{
@@ -1138,7 +1139,7 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 					break;
 				}
 				default:
-					throw std::exception("Error: unknown value of the output mode parameter.");
+					throw std::runtime_error("Error: unknown value of the output mode parameter.");
 				}
 
 			} // end of cycle over defocus distance
@@ -1203,10 +1204,10 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 		//cin >> a;
 
 		if (thread_counter.GetCount() < 0)
-			throw std::exception("another thread has requested program termination.");
+			throw std::runtime_error("another thread has requested program termination.");
 		//@@@@@ end TEG code
 	}
-	catch (std::exception& E)
+	catch (std::runtime_error& E)
 	{
 #ifdef TEG_MULTITHREADED
 		printf("\n!!!Exception: %s\n", E.what());

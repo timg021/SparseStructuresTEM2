@@ -354,7 +354,8 @@ namespace // anonymous
 		XARWORD wCurTag;
 		XARWORD wTagId;
 		XARWORD wType;
-		void *pValue;
+		void *pValue0;
+		XARBYTE* pValue;
 		XARDWORD dwLen;
 		XARDWORD dwNextIFD;
 
@@ -364,7 +365,8 @@ namespace // anonymous
 
 		for(wCurTag = 0; wCurTag < wTags; wCurTag++)
 		{
-			ReadTiffTag(pFile, &wTagId, &wType, &dwLen, &pValue, pchFilename);
+			ReadTiffTag(pFile, &wTagId, &wType, &dwLen, &pValue0, pchFilename);
+			pValue = (XARBYTE*)pValue0;
 
 			// process the documented tags
 			switch(wTagId)
@@ -559,7 +561,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if XArray2D object is empty or contains complex values
 		\exception  std::invalid_argument is thrown if 'filetype' parameter is not eTIFF8, eTIFF16 or eTIFF32
 		\exception  std::runtime_error is thrown if any of the file write operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -767,7 +769,7 @@ namespace xar
 		\param		pchFilename	Full name of the file to be read from
 		\exception  std::invalid_argument is thrown if XArray2D object is of complex type
 		\exception  std::runtime_error is thrown if any of the file read operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -942,7 +944,7 @@ namespace xar
 	\exception  std::invalid_argument is thrown if XArray3D object contains complex values
 	\exception  std::invalid_argument is thrown if 'filetype' parameter is not eTIFF8, eTIFF16 or eTIFF32
 	\exception  std::runtime_error is thrown if any of the file write operations fail
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:

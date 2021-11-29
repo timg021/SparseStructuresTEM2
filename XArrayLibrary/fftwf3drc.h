@@ -86,8 +86,8 @@ public:
 	// Inverse FFT
 	void InverseFFT() { fftwf_execute(bplan); }
 	// Print internal arrays
-	void PrintRealArray(const char* message);
-	void PrintComplexArray(const char* message);
+	//void PrintRealArray(const char* message);
+	//void PrintComplexArray(const char* message);
 
 private:
 	// Member variables

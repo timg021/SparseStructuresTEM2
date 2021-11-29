@@ -224,7 +224,7 @@ namespace xar
 		\param		bCheck	Determines if the array dimensions are checked to be integer powers of 2 (true)
 		\param		bResizeToZero	Determines if the source object is resized to zero in this function
 		\exception  std::invalid_argument is thrown if bCheck is true and the array dimensions are not integer powers of 2
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -436,7 +436,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the kernel
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -607,7 +607,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the kernel
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -862,7 +862,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the kernel
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -944,7 +944,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the kernel
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1059,7 +1059,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the kernel
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1384,7 +1384,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the reference
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1551,7 +1551,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if the 'wrapped' real XArray2D object and the reference
 					object coincide, or if they have different wavelengths or step sizes
 		\exception  std::runtime_error is thrown if there is not enough memory
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1714,7 +1714,7 @@ namespace xar
 		\param		iYWidth	Width in pixels of the kernel along the first dimension
 		\param		iXWidth	Width in pixels of the kernel along the second dimension
 		\exception  std::invalid_argument is thrown if iYWidth or iXWidth are larger than the corresponding size of the 'wrapped' object
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1771,7 +1771,7 @@ namespace xar
 		\param		dblWidthX	width in pixels of the kernel along the second dimension
 		\exception  std::invalid_argument is thrown if dblWidthY or dblWidthX are larger than the corresponding
 					size of the 'wrapped' object or are non-positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1821,7 +1821,7 @@ namespace xar
 		\param		dblWidth	diameter in pixels of the kernel
 		\exception  std::invalid_argument is thrown if dblWidth is larger than the dimenasions
 					of the 'wrapped' object or is non-positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1870,7 +1870,7 @@ namespace xar
 		\brief		Filters the 'wrapped' real XArray2D object by convoluting it with a Gaussian kernel
 		\param		dblSigmaY	Half-width in pixels of the kernel along the first dimension
 		\param		dblSigmaX	Half-width in pixels of the kernel along the second dimension
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1929,7 +1929,7 @@ namespace xar
 	/*!
 		\brief		Filters the 'wrapped' real XArray2D object by convoluting it with a Lorentz kernel
 		\param		dblSigma	Half-diameter in pixels of the kernel
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -2008,7 +2008,7 @@ namespace xar
 		\param		iYFreqCutoff	Cut-off frequency corresponding to the first dimension
 		\param		iXFreqCutoff	Cut-off frequency corresponding to the second dimension
 		\exception  std::invalid_argument is thrown if iYFreqCutoff or iXFreqCutoff exceed the spectral width of the 'wrapped' object
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -2056,7 +2056,7 @@ namespace xar
 		\brief		Filters the 'wrapped' real XArray2D object by applying Gaussian window to its Fourier spectrum
 		\param		dblFreqSigmaY	Spectral half-width of the window corresponding to the first dimension
 		\param		dblFreqSigmaX	Spectral half-width of the window corresponding to the second dimension
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -2100,7 +2100,7 @@ namespace xar
 		\param		dblGamma	G-parameter of the Lorentzian distribution G / [(k-k0)^2 + G^2]
 		\param		iKy0	ky-centre (in pixels) of the Lorentzian distribution in Fourier space
 		\param		iKx0	kx-centre (in pixels) of the Lorentzian distribution in Fourier space
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -2171,7 +2171,7 @@ namespace xar
 		\param		SpectFraction defines the fraction of the Fourier spectrum to be used (the rest ofthe spectrum is set to zero)
 		\exception	std::invalid_argument is thrown if any of the two dimensions of the wrapped object
 					is not an integer power of 2; or if the object does not have an associated Wavehead2D.
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 	*/	

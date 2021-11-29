@@ -47,13 +47,13 @@ namespace xar
 	//NOTE: the absense of relevant specialization will prevent instantiation
 	//		of XArray<T> classes for unsupported T-types (this is the intended behavior)
 	//
-	inline _eValueType XArray<char>::GetValuetype() { return eXAChar; }	
-	inline _eValueType XArray<short>::GetValuetype() { return eXAShort; }	
-	inline _eValueType XArray<long>::GetValuetype() { return eXALong; }	
-	inline _eValueType XArray<float>::GetValuetype() { return eXAFloat; }
-	inline _eValueType XArray<double>::GetValuetype() { return eXADouble; }
-	inline _eValueType XArray<fcomplex>::GetValuetype() { return eXAFComplex; }
-	inline _eValueType XArray<dcomplex>::GetValuetype() { return eXADComplex; }
+	template<> _eValueType XArray<char>::GetValuetype() { return eXAChar; }
+	template<> _eValueType XArray<short>::GetValuetype() { return eXAShort; }
+	template<> _eValueType XArray<long>::GetValuetype() { return eXALong; }
+	template<> _eValueType XArray<float>::GetValuetype() { return eXAFloat; }
+	template<> _eValueType XArray<double>::GetValuetype() { return eXADouble; }
+	template<> _eValueType XArray<fcomplex>::GetValuetype() { return eXAFComplex; }
+	template<> _eValueType XArray<dcomplex>::GetValuetype() { return eXADComplex; }
 
 
 	template <class T> bool XArray<T>::SameHead(const XArray<T>& xa) const
@@ -186,14 +186,14 @@ namespace xar
 
 	//***** member functions
 
-	template <class T> inline void XArray<T>::Abs() 
+	template <class T>  void XArray<T>::Abs() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = T(fabs((*this)[i]));
 	}
 
 	
-	template <class T> inline void XArray<T>::ThresholdLow(T tSubtract, T tThreshold)
+	template <class T>  void XArray<T>::ThresholdLow(T tSubtract, T tThreshold)
 	// This function is specialized separately for complex T
 	{
 		for (index_t i = 0; i < (*this).size(); i++)
@@ -204,91 +204,91 @@ namespace xar
 	}
 	
 
-	template <class T> inline void XArray<T>::Abs2() 
+	template <class T>  void XArray<T>::Abs2() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (*this)[i] * (*this)[i];
 	}
 
 
-	template <class T> inline void XArray<T>::Exp() 
+	template <class T>  void XArray<T>::Exp() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)exp((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Log() 
+	template <class T>  void XArray<T>::Log() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)log((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Sin() 
+	template <class T>  void XArray<T>::Sin() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)sin((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Cos() 
+	template <class T>  void XArray<T>::Cos() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)cos((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Tan() 
+	template <class T>  void XArray<T>::Tan() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)tan((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Asin() 
+	template <class T>  void XArray<T>::Asin() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)asin((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Acos() 
+	template <class T>  void XArray<T>::Acos() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)acos((double)(*this)[i]);
 	}
 
 
-	template <class T> inline void XArray<T>::Atan() 
+	template <class T>  void XArray<T>::Atan() 
 	// This function is specialized separately for complex T
 	{ 
 		for (index_t i=0; i<(*this).size(); i++) (*this)[i] = (T)atan((double)(*this)[i]);
 	}
 
 
-	template <class T> inline double XArray<T>::GetAt(index_t index) const 
+	template <class T>  double XArray<T>::GetAt(index_t index) const 
 	// This function is specialized separately for complex T
 	{ 
 		return double(vector<T>::at(index));
 	}
 	
 
-	template <class T> inline void XArray<T>::SetAt(index_t index, double val)
+	template <class T>  void XArray<T>::SetAt(index_t index, double val)
 	// This function is specialized separately for complex T
 	{ 
 		vector<T>::at(index) = T(val);
 	}
 	
 	
-	template <class T> inline dcomplex XArray<T>::GetCmplAt(index_t index) const
+	template <class T>  dcomplex XArray<T>::GetCmplAt(index_t index) const
 	// This function is specialized separately for complex T
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<T>::GetCmplAt (must be complex)"); 	
 	}
 	
 
-	template <class T> inline void XArray<T>::SetCmplAt(index_t index, dcomplex val)
+	template <class T>  void XArray<T>::SetCmplAt(index_t index, dcomplex val)
 	// This function is specialized separately for complex T
 	{
 		throw std::invalid_argument("invalid_argument '*this' in XArray<T>::SetCmplAt (must be complex)"); 
@@ -494,49 +494,49 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 	// It appears that these functions have to be 'inline' to be considered by the compiler
 	//
 
-	inline double XArray<fcomplex>::GetAt(index_t index) const
+	template<> double XArray<fcomplex>::GetAt(index_t index) const
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::GetAt (this cannot be complex)");
 	}
 
 
-	inline void XArray<fcomplex>::SetAt(index_t index, double val)
+	template<> void XArray<fcomplex>::SetAt(index_t index, double val)
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::SetAt (this cannot be complex)");
 	}
 
 
-	inline double XArray<dcomplex>::GetAt(index_t index) const 
+	template<> double XArray<dcomplex>::GetAt(index_t index) const
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::GetAt (this cannot be complex)");
 	}
 
 
-	inline void XArray<dcomplex>::SetAt(index_t index, double val)
+	template<> void XArray<dcomplex>::SetAt(index_t index, double val)
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::SetAt (this cannot be complex)");
 	}
 
 
-	inline dcomplex XArray<fcomplex>::GetCmplAt(index_t index) const
+	template<> dcomplex XArray<fcomplex>::GetCmplAt(index_t index) const
 	{
 		return dcomplex(at(index));
 	}
 
 
-	inline void XArray<fcomplex>::SetCmplAt(index_t index, dcomplex val)
+	template<> void XArray<fcomplex>::SetCmplAt(index_t index, dcomplex val)
 	{
 		at(index) = fcomplex(val); 
 	}
 
 
-	inline dcomplex XArray<dcomplex>::GetCmplAt(index_t index) const
+	template<> dcomplex XArray<dcomplex>::GetCmplAt(index_t index) const
 	{
 		return at(index); 
 	}
 
 
-	inline void XArray<dcomplex>::SetCmplAt(index_t index, dcomplex val)
+	template<> void XArray<dcomplex>::SetCmplAt(index_t index, dcomplex val)
 	{
 		at(index) = val; 
 	}
@@ -546,139 +546,139 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 	// do not work for std::complex, while std::functions do not work for non-complex types
 	//
 
-	inline void XArray<fcomplex>::operator^=(fcomplex cxfVal)
+	template<> void XArray<fcomplex>::operator^=(fcomplex cxfVal)
 	{
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::pow((*this)[i], cxfVal);
 	}
 
 
-	inline void XArray<dcomplex>::operator^=(dcomplex cxdVal)
+	template<> void XArray<dcomplex>::operator^=(dcomplex cxdVal)
 	{
 		for (index_t i=0; i< (*this).size(); i++)  (*this)[i] = std::pow((*this)[i], cxdVal);
 	}
 
 
-	inline void XArray<fcomplex>::Abs() 
+	template<> void XArray<fcomplex>::Abs()
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Abs (member function undefined)"); 	
 	}
 	
 
-	inline void XArray<fcomplex>::Abs2() 
+	template<> void XArray<fcomplex>::Abs2()
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Abs2 (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Log() 
+	template<> void XArray<fcomplex>::Log()
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::log((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Exp() 
+	template<> void XArray<fcomplex>::Exp()
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::exp((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Sin() 
+	template<> void XArray<fcomplex>::Sin()
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::sin((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Cos() 
+	template<> void XArray<fcomplex>::Cos()
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::cos((*this)[i]);
 	}
 
 
-	inline void XArray<fcomplex>::Tan() 
+	template<> void XArray<fcomplex>::Tan()
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Tan (member function undefined)"); 		
 	}
 
 
-	inline void XArray<fcomplex>::Asin() 
+	template<> void XArray<fcomplex>::Asin()
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Asin (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Acos() 
+	template<> void XArray<fcomplex>::Acos() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Acos (member function undefined)"); 	
 	}
 
 
-	inline void XArray<fcomplex>::Atan() 
+	template<> void XArray<fcomplex>::Atan() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Atan (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Abs() 
+	template<> void XArray<dcomplex>::Abs() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Abs (member function undefined)"); 	
 	}
 	
 
-	inline void XArray<dcomplex>::Abs2() 
+	template<> void XArray<dcomplex>::Abs2() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Abs2 (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Log() 
+	template<> void XArray<dcomplex>::Log() 
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::log((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Exp() 
+	template<> void XArray<dcomplex>::Exp() 
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::exp((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Sin() 
+	template<> void XArray<dcomplex>::Sin() 
 	{
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::sin((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Cos() 
+	template<> void XArray<dcomplex>::Cos() 
 	{ 
 		for (index_t i=0; i<(*this).size(); i++)  (*this)[i] = std::cos((*this)[i]);
 	}
 
 
-	inline void XArray<dcomplex>::Tan() 
+	template<> void XArray<dcomplex>::Tan() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Tan (member function undefined)"); 		
 	}
 
 
-	inline void XArray<dcomplex>::Asin() 
+	template<> void XArray<dcomplex>::Asin() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Asin (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Acos() 
+	template<> void XArray<dcomplex>::Acos() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Acos (member function undefined)"); 	
 	}
 
 
-	inline void XArray<dcomplex>::Atan() 
+	template<> void XArray<dcomplex>::Atan() 
 	{ 
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Atan (member function undefined)"); 	
 	}
 
 
-	inline double XArray<fcomplex>::Norm(_eNormID eMode) const
+	template<> double XArray<fcomplex>::Norm(_eNormID eMode) const
 	// NOTE: this function must be defined inline in the Array1D.h to be considered by the compiler alongside 
 	// with the default template version of the Norm function
 	{
@@ -743,7 +743,7 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 	}
 
 
-	inline double XArray<dcomplex>::Norm(_eNormID eMode) const
+	template<> double XArray<dcomplex>::Norm(_eNormID eMode) const
 	// NOTE: this function must be defined inline in the Array1D.h to be considered by the compiler alongside 
 	// with the default template version of the Norm function
 	{
@@ -807,22 +807,22 @@ double dblChi2 = myXArray2D.Chi2(otherXArray);
 		return anorm;
 	}
 
-	inline double XArray<fcomplex>::Chi2(const XArray<fcomplex>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
+	template<> double XArray<fcomplex>::Chi2(const XArray<fcomplex>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
 	{
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::Chi2 (member function undefined)"); 	
 	}
 
-	inline double XArray<dcomplex>::Chi2(const XArray<dcomplex>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
+	template<> double XArray<dcomplex>::Chi2(const XArray<dcomplex>& rXArray, double dblRelStDevAver, bool bUsePoissonStat) const
 	{
 		throw std::invalid_argument("invalid_argument '*this' in XArray<dcomplex>::Chi2 (member function undefined)"); 	
 	}
 
-	inline void XArray<fcomplex>::ThresholdLow(fcomplex tSubtract, fcomplex tThreshold)
+	template<> void XArray<fcomplex>::ThresholdLow(fcomplex tSubtract, fcomplex tThreshold)
 	{
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::ThresholdLow (member function undefined)");
 	}
 
-	inline void XArray<dcomplex>::ThresholdLow(dcomplex tSubtract, dcomplex tThreshold)
+	template<> void XArray<dcomplex>::ThresholdLow(dcomplex tSubtract, dcomplex tThreshold)
 	{
 		throw std::invalid_argument("invalid_argument '*this' in XArray<fcomplex>::ThresholdLow (member function undefined)");
 	}
@@ -845,7 +845,7 @@ namespace xar
 		\param		b	Real scalar value representing imaginary part or phase of a complex object to be constructed
 		\param		C	Complex XArray object constructed by this function
 		\param		bMakePolar if \b true, then C = A * exp(ib) is constructed, else C = A + ib is constructed
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called from
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called from
 					inside this function
 		\return		\a None
 		\par		Description:
@@ -881,7 +881,7 @@ MakeComplex(A, 0.0f, C, false);
 		\param		B	Real XArray object representing imaginary part or phase of a complex object to be constructed
 		\param		C	Complex XArray object constructed by this function
 		\param		bMakePolar if \b true, then C = a * exp(iB) is constructed, else C = a + iB is constructed
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called from
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called from
 					inside this function
 		\return		\a None
 		\par		Description:
@@ -918,7 +918,7 @@ MakeComplex(1.0f, B, C, false);
 		\param		C	Complex XArray object constructed by this function
 		\param		bMakePolar if \b true, then C = A * exp(iB) is constructed, else C = A + iB is constructed
 		\exception	std::invalid_argument is thrown if A and B have differented sizes or heads
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called
 					from inside this function
 		\return		\a None
 		\par		Description:
@@ -958,7 +958,7 @@ MakeComplex(A, B, C, false);
 		\param		Fi	Real XArray object representing imaginary a phase distribution
 		\param
 		\exception	std::invalid_argument is thrown if C and A have differented sizes
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called
 					from inside this function
 		\return		\a None
 		\par		Description:
@@ -990,7 +990,7 @@ MultiplyExpiFi(C, Fi);
 		\param		A	Real XArray object representing the new modulus
 		\param
 		\exception	std::invalid_argument is thrown if C and A have differented sizes
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called
 					from inside this function
 		\return		\a None
 		\par		Description:
@@ -1010,7 +1010,7 @@ MultiplyExpiFi(C, Fi);
 		T temp;
 		for (index_t i = 0; i < isize; i++)
 		{
-			temp = abs(C[i]);
+			temp = std::abs(C[i]);
 			if (temp) C[i] *= A[i] / temp; else C[i] = A[i];
 		}
 	}
@@ -1024,7 +1024,7 @@ MultiplyExpiFi(C, Fi);
 		\brief		Calculates the real part of a complex XArray object
 		\param		C	Input complex XArray object
 		\param		A	Output real XArray object to be made equal to the real part of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1056,7 +1056,7 @@ Re(C, A);
 		\brief		Calculates the imaginary part of a complex XArray object
 		\param		C	Input complex XArray object
 		\param		A	Output real XArray object to be made equal to the imaginary part of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1088,7 +1088,7 @@ Im(C, A);
 		\brief		Calculates the modulus of a complex XArray object
 		\param		C	Input complex XArray object
 		\param		A	Output real XArray object to be made equal to the modulus of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1121,7 +1121,7 @@ Abs(C, A);
 		\brief		Calculates the argument of a complex XArray object
 		\param		C	Input complex XArray object
 		\param		A	Output real XArray object to be made equal to the argument of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1153,7 +1153,7 @@ Arg(C, A);
 		\brief		Calculates the square modulus of a complex XArray object
 		\param		C	Input complex XArray object
 		\param		A	Output real XArray object to be made equal to the square modulus of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1184,7 +1184,7 @@ Abs2(C, A);
 	/*!
 		\brief		Conjugates a complex XArray object
 		\param		C	Input and output complex XArray object
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1217,7 +1217,7 @@ Conjg(C);
 		\brief		Calculates the 1D-continuous phase of a complex XArray object
 		\param		C	Input complex XArray object
 		\param		A	Output real XArray object to be made equal to the phase of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:

@@ -70,7 +70,7 @@ void Fftwd3drc::SetComplexXArray3D(xar::XArray3D<xar::dcomplex> aaa)
 			}
 }
 
-
+/*
 void Fftwd3drc::PrintRealArray(const char* message)
 {
 	double* pin = GetReal();
@@ -96,17 +96,17 @@ void Fftwd3drc::PrintComplexArray(const char* message)
 				m++; 
 			}
 }
-
+*/
 
 void Fftwd3drc::InverseMLaplacian(xar::XArray3D<double>& xa3, double alpha)
 // inverse 3D (-Laplacian) via multiplication of the FFT by 4 * PI^2 * (ksi^2 + eta^2 + dzeta^2)
 // alpha is the usual Tikhonov regularization parameter
 {
 	if (nz != xa3.GetDim1() || ny != xa3.GetDim2() || nx != xa3.GetDim3())
-		throw std::exception("Error: input XArray3D in InverseLaplacian() has wrong dimensions.");
+		throw std::runtime_error("Error: input XArray3D in InverseLaplacian() has wrong dimensions.");
 
 	IXAHWave3D* ph3 = GetIXAHWave3D(xa3);
-	if (ph3 == 0) throw std::exception("Error: input XArray3D in InverseLaplacian() does not have a Wave3D head.");
+	if (ph3 == 0) throw std::runtime_error("Error: input XArray3D in InverseLaplacian() does not have a Wave3D head.");
 	double xlo = ph3->GetXlo();
 	double xhi = ph3->GetXhi();
 	double ylo = ph3->GetYlo();
@@ -166,10 +166,10 @@ void Fftwd3drc::GaussFilter(xar::XArray3D<double>& xa3, double sigma)
 // Convolution with a 3D Gaussian with the standard deviation equal to sigma
 {
 	if (nz != xa3.GetDim1() || ny != xa3.GetDim2() || nx != xa3.GetDim3())
-		throw std::exception("Error: input XArray3D in GaussFilter() has wrong dimensions.");
+		throw std::runtime_error("Error: input XArray3D in GaussFilter() has wrong dimensions.");
 
 	IXAHWave3D* ph3 = GetIXAHWave3D(xa3);
-	if (ph3 == 0) throw std::exception("Error: input XArray3D in GaussFilter() does not have a Wave3D head.");
+	if (ph3 == 0) throw std::runtime_error("Error: input XArray3D in GaussFilter() does not have a Wave3D head.");
 	double xlo = ph3->GetXlo();
 	double xhi = ph3->GetXhi();
 	double ylo = ph3->GetYlo();

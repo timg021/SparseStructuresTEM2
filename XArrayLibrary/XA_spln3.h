@@ -94,7 +94,7 @@ namespace xar
 		//! Rotates 3D array around a given point with respect to two axes 
 		void Rotate1(XArray3D<T>& xaResult3D, double angleY, double angleX, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
 		//! Rotates 3D array around a given point with respect to three axes(three Euler angles)
-		void Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
+		void Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, int nThreads, double zc = -1.1e-11, double yc = -1.1e-11, double xc = -1.1e-11, T Backgr = T(0)) const;
 		//! Calculates multislice propagation of a plane electron wave through the 3D distribution of the scaled electrostatic potential defined by the wrapped object rXAr3D
 		void Multislice_eV(XArray2D<std::complex<T> >& xaCamp2D, double angleZ, double angleY, double sliceTh, double q2max = -1.0) const;
 
@@ -201,7 +201,7 @@ template <class T> void xar::XArray3DSpln<T>::operator=(const XArray3DSpln<T>& r
 	\param		yc Y-coordinate of the centre of rotation
 	\param		xc X-coordinate of the centre of rotation
 	\param		Backgr Value for filling "background" areas around the rotated array
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -323,7 +323,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate(XArray3D<T>& xaResult3D, do
 	\param		yc Y-coordinate of the centre of rotation
 	\param		xc X-coordinate of the centre of rotation
 	\param		Backgr Value for filling "background" areas around the rotated array
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -431,14 +431,17 @@ template <class T> void xar::XArray3DSpln<T>::Rotate1(XArray3D<T>& xaResult3D, d
 	\param		yc Y-coordinate of the centre of rotation
 	\param		xc X-coordinate of the centre of rotation
 	\param		Backgr Value for filling "background" areas around the rotated array
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
 		This function rotates 3D array around a specified point by the 3 specified Euler angles using trilinear interpolation
 */
-template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, double zc, double yc, double xc, T Backgr) const
+template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, double angleZ, double angleY, double angleZ2, int nThreads, double zc, double yc, double xc, T Backgr) const
 {
+
+	if ( nThreads > 1) omp_set_num_threads(nThreads);
+
 	// check and enforce default coordinates of the centre of rotation
 	if (zc == -1.1e-11) zc = 0.5 * (m_zlo + m_zhi);
 	if (yc == -1.1e-11) yc = 0.5 * (m_ylo + m_yhi);
@@ -483,7 +486,8 @@ template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, d
 	int ii, jj, nn, nx2 = int(m_nx) - 2, ny2 = int(m_ny) - 2, nz2 = int(m_nz) - 2;
 	double xx, xx_sinangleY, xx_cosangleY, yy, yy_sinangleZ, yy_cosangleZ, dx0, dx1, dy0, dy1, dz0, dz1;
 
-	for (index_t i = 0; i < m_nx; i++)
+	#pragma omp parallel for shared (xaResult3D, x_cosangleZ2, x_sinangleZ2, y_sinangleZ2, y_cosangleZ2, z_sinangleY, z_cosangleY) private(xx, yy, xxx, yyy, zzz, xx_sinangleY, xx_cosangleY, yy_sinangleZ, yy_cosangleZ , dx1, dx0, dy1, dy0, dz1, dz0, ii, jj, nn)
+	for (int i = 0; i < m_nx; i++)
 	{
 		for (index_t j = 0; j < m_ny; j++)
 		{
@@ -507,7 +511,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, d
 				// z = zc + (xk - xc) * sinangley + (zk - zc) * cosangley;
 				xx = xx_cosangleY - z_sinangleY[n]; // x - xc coordinate after the inverse rotation around Y'
 				zzz = xx_sinangleY + z_cosangleY[n]; // z coordinate after the inverse rotation around Y'
-				dz1 = abs(zzz - m_zlo) / m_zst;
+				dz1 = std::abs(zzz - m_zlo) / m_zst;
 				nn = (int)dz1; if (nn < 0 || nn > nz2) continue;
 				dz1 -= nn; dz0 = 1.0 - dz1;
 
@@ -515,12 +519,12 @@ template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, d
 				//pd.adata[i].x = xc + (xk - xc) * cosanglez + (yk - yc) * sinanglez;
 				//pd.adata[i].y = yc + (-xk + xc) * sinanglez + (yk - yc) * cosanglez;
 				xxx = yy_sinangleZ + xx * cosangleZ; // x coordinate after the inverse rotation around Z
-				dx1 = abs(xxx - m_xlo) / m_xst;
+				dx1 = std::abs(xxx - m_xlo) / m_xst;
 				ii = (int)dx1; if (ii < 0 || ii > nx2) continue;
 				dx1 -= ii; dx0 = 1.0 - dx1;
 
 				yyy = yy_cosangleZ - xx * sinangleZ; // y coordinate after the inverse rotation around Z
-				dy1 = abs(yyy - m_ylo) / m_yst;
+				dy1 = std::abs(yyy - m_ylo) / m_yst;
 				jj = (int)dy1; if (jj < 0 || jj > ny2) continue;
 				dy1 -= jj; dy0 = 1.0 - dy1;
 
@@ -551,7 +555,7 @@ template <class T> void xar::XArray3DSpln<T>::Rotate3(XArray3D<T>& xaResult3D, d
 	\param      sliceTh slice thickness in the units of the wrapped object
 	\param		q2max Defines the optional bandwidth limit (q2max <= 0.0 is interepreted as infinite aperture)
 	\param		rXar3D is supposed to contain the 3D distribution of -2*Pi/lambda*delta(x,y,z) = -Pi/(lambda*E)*V(x,y,z)
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -638,7 +642,7 @@ template <class T> void xar::XArray3DSpln<T>::Multislice_eV(XArray2D<std::comple
 			{
 				// inverse rotation around Y' axis
 				zzz = zc + z_cosangleY[n] + x_sinangleY[i]; // z coordinate after the inverse rotation around Y'
-				dz1 = abs(zzz - m_zlo) / m_zst;
+				dz1 = std::abs(zzz - m_zlo) / m_zst;
 				nn = (int)dz1; if (nn < 0 || nn > nz2) continue;
 				dz1 -= nn; dz0 = 1.0 - dz1;
 
@@ -650,12 +654,12 @@ template <class T> void xar::XArray3DSpln<T>::Multislice_eV(XArray2D<std::comple
 				{
 					// inverse rotation around Z axis
 					xxx = xc + y_sinangleZ[j] + xx_cosangleZ; // x coordinate after the inverse rotation around Z
-					dx1 = abs(xxx - m_xlo) / m_xst;
+					dx1 = std::abs(xxx - m_xlo) / m_xst;
 					ii = (int)dx1; if (ii < 0 || ii > nx2) continue;
 					dx1 -= ii; dx0 = 1.0 - dx1;
 
 					yyy = yc + y_cosangleZ[j] - xx_sinangleZ; // y coordinate after the inverse rotation around Z
-					dy1 = abs(yyy - m_ylo) / m_yst;
+					dy1 = std::abs(yyy - m_ylo) / m_yst;
 					jj = (int)dy1; if (jj < 0 || jj > ny2) continue;
 					dy1 -= jj; dy0 = 1.0 - dy1;
 

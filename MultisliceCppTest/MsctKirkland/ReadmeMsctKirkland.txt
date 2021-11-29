@@ -60,14 +60,14 @@ Here is a typical example of a valid MsctKirkland.txt parameter file.
 2.Output_files_shall_contain_intensity(0),_phase(1),_complex_amplitude(2)_or_3D_potential(3): 0
 3.Output_TIFF/GRD/GRC_filename_template: C:\Users\tgureyev\Downloads\Temp\asp.tif
 4.Use_multislice(0),_projection(1),_or_1st_Born(2)_approximation: 0
-5.Incident__electron_beam_energy_in_keV: 200.0
+5.Incident_electron_beam_energy_in_keV: 200.0
 6.Wavefunction_size_in_pixels,_Nx,Ny: 256 256
 7.Slice_thickness_in_Angstroms: 1.25
 8.Objective_aperture_in_mrad: 45.0
-9.Spherical_aberration_Cs3_and_Cs5_in_mm: 0 0
+9.Spherical_aberration_Cs3_and_Cs5_in_mm: 2.7 0.0
 10.Include_thermal_vibrations(1)_or_not(0): 1
-11.____Temperature_in_degrees_K: 300.0
-12.____Number_of_configurations_to_average_over: 64
+11.____Temperature_in_degrees_K: 77.0
+12.____Number_of_configurations_to_average_over: 1
 13.Ice_layer_thickness_in_Angstroms: 100
 14.Text_file_with_output_rotation_angles_in_degrees_and_defocus_distances_in_Angstroms: DefocusRand36_1_NEW.txt
 15.Number_of_worker_threads_to_launch: 20
@@ -85,7 +85,10 @@ names.
 In the above example, Parameter 1 contains the name of an "atomic structure" file in 
 Kirkland's XYZ format (see the references above for the description of this format). The 
 XYZ file must be present in the same folder where MsctKirkland.exe is started from, or, 
-alternatively, the filename can include a fully specified pathname (OS specific). 
+alternatively, the filename can include a fully specified pathname (OS specific). Note that 
+this file is expected to contain the lengths of the sides of a (cubic) volume containing 
+the molecule at any rotational positions in 3D. The z-extent of this volume may be increased if
+ice is added during the simulations.
 
 Parameter 2 can be equal to 0, 1, 2 or 3. It defines what type of output data is generated and 
 saved by MsctKirkland.exe. "0" corresponds to the output of defocused intensities,
@@ -108,8 +111,7 @@ Parameter 3 contains a fully specified pathname template for the output files co
 (c) defocused complex amplitudes (in GRC format), or 
 (d) 2D cross-sections (in GRD format or uncompressed 32-bit floating-point TIFF format) of the 
 3D distribution of the electrostatic potential corresponding to the atomic structure specified
-in Parameter 1. 
-The GRD and GRC file formats are described below.
+in Parameter 1. The GRD and GRC file formats are described below.
 Note that here the pathname is actually supposed to contain a "template" for the
 eventual output filenames which MsctKirkland.exe creates by inserting one or a pair of numbers
 that correspond to the index of a defocus distance (first inserted number) and the index of a 
@@ -227,23 +229,29 @@ Each even column (starting from the fourth one) contains a defocus distance in a
 axis. The number of lines in this file is not limited. Note that this file
 has a somewhat "special" form in the case of output of the 3D electrostatic potential. A suitable example 
 is also given below.
-(b) If the file extension is ".RELION", then this file contains an arbitrary number of lines,
-each line containing exactly nine entries, separated by white spaces, with the following contents:
-1st entry contains the sequential number of the line - this parameter is not used in MsctKirkland.exe
-2nd entry contains the name of the file where the data was sourced from - this parameter is not used in MsctKirkland.exe
-3rd entry is the defocus distance dx corresponding to the x coordinate
-4th entry is the defocus distance dy corresponding to the y coordinate
-5th entry is the image shift along x in angstroms 
-6th entry is the image shift along y in angstroms 
-7th entry is the rotation angle "rot" around the Z coordinate in radians
-8th entry is the rotation angle "tilt" around the Y' coordinate in radians
-9th entry is the rotation angle "psi" around the Z" coordinate in radians
+(b) If the file extension is ".relionnew", then this file contains an arbitrary number of lines,
+each line containing exactly ten entries, separated by white spaces, with the following contents:
+1st entry contains the sequential number of the line - this parameter is not used
+2nd entry contains the name of the file where the data was sourced from - this parameter is not used
+3rd entry is the image shift along x in angstroms 
+4th entry is the image shift along y in angstroms 
+5th entry is the defocus distance dx corresponding to the x coordinate
+6th entry is the defocus distance dy corresponding to the y coordinate
+7th entry contains the astigmatism angle (alpha) in degrees
+8th entry is the rotation angle "rot" around the Z coordinate in degrees
+9th entry is the rotation angle "tilt" around the Y' coordinate in degrees
+10th entry is the rotation angle "psi" around the Z" coordinate in degrees
 A suitable example is given below.
-Note that in the case of .RELION format file, the defocus distances given in this file are considered
-to be measured from the centre of the molecule, while in the case of .TXT format files the defocus
-distances are measured from the "exit" plane of the cube containing the molecule. In order to reconcile
-this, the defocus distances given in .RELION file are adjusted by subtracting one-half of the 
-z-extent of the molecule as found in the input XYZ file given in Parameter 1.
+Note that the defocus distances given in this file are considered to be measured from 
+the centre of the molecule. In order to implement this, the free-space propagation distances used
+in Fresnel integrals at the end of this program are made equal to the defocused distances read from
+this input text file, minus one-half of the z-extent of the molecule as defined by the z-extent of the molecule
+in Parameter 1, or the ice thickness in Parameter 13. This is done because the free-space propagation 
+inside the molecule is already calculated as part of the multislice algorithm that is used for 
+calculating the propagation of the incident wave through the molecule.
+Also, in the case of .relionnew files, all numerical values, except the astigmatism angle (alpha)
+are multiplied by (-1) inside the MsctKirkland.exe program, because this type of sign flipping has been found
+to be consistent with the treatment of these parameters in RELION.
 The text file given in Parameter 14 must be present in the same folder where MsctKirkland.exe is started from,
 or, alternatively, the filename can include a fully specified pathname (OS specific). 
 
@@ -302,29 +310,21 @@ defocused images, phases or complex amplitudes:
 347.4672745	43.82225966	170.2100489	8.462136081	257.2294484	6.048567208
 
 ======================================================================================= 
-** Example of a text file with ".RELION" extenstion whose name may appear in Parameter 14 when generating 
-defocused images, phases or complex amplitudes:
-0 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -3.5859375 4.3828125 -2.7313623428344727 -1.9179142713546753 -0.15076839923858643 
-1 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -0.557812511920929 -8.685937881469727 0.5294424891471863 -0.038568660616874695 -3.0679616928100586 
-2 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -0.557812511920929 -5.498437404632568 -3.285348653793335 -0.859029233455658 0.08765604346990585 
-3 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -3.9046874046325684 2.629687547683716 1.1114786863327026 1.8127269744873047 -1.9529767036437988 
-4 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 0.3984375 -5.339062690734863 -2.198413610458374 -1.8407769203186035 0.19284330308437347 
-5 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 2.629687547683716 -6.454687595367432 0.14375591278076172 3.215223789215088 0.34711793065071106 
-6 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 7.251562595367432 -3.426562547683716 -1.076416254043579 -2.815512180328369 0.5785298943519592 
-7 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 1.514062523841858 -6.614062309265137 1.8618143796920776 -0.9221416115760803 -1.4971652030944824 
-8 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -6.295312404632568 0.23906250298023224 1.055378794670105 3.2993736267089844 0.01753120869398117 
-9 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 2.151562452316284 1.9921875 1.6374149322509766 1.9670016765594482 2.1843886375427246 
-10 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 7.410937309265137 -5.498437404632568 -2.4228131771087646 -2.394763231277466 -0.6626796722412109 
-11 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -0.7171875238418579 -8.048437118530273 -1.8337644338607788 -2.7874622344970703 -0.5855423808097839 
-12 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -4.3828125 6.135937690734863 0.859029233455658 -3.2082111835479736 -0.5434674620628357 
-13 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 3.1078124046325684 11.395312309265137 -2.577087640762329 0.2980305552482605 0.17881833016872406 
-14 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -2.4703125953674316 3.5859375 2.773437261581421 0.10869349539279938 1.6654648780822754 
-15 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 1.673437476158142 6.932812690734863 2.5280003547668457 0.8379917740821838 -1.8337644338607788 
-16 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -5.020312309265137 0.3984375 -0.6346297860145569 -3.1731488704681396 -0.49438008666038513 
-17 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 8.048437118530273 7.410937309265137 3.0048491954803467 0.5785298943519592 -0.8520167469978333 
-18 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -1.0359375476837158 -2.151562452316284 -1.5252151489257812 2.8225245475769043 -0.14375591278076172 
-19 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -4.064062595367432 -0.23906250298023224 2.226463556289673 1.8688268661499023 0.49438008666038513 
-20 b'J19/extract/16300063732981320253_FoilHole_24015405_Data_24016401_24016403_20200225_0014_Fractions.mrc_rigid_aligned_particles.mrc' 13067.9072265625 12987.794921875 -2.4703125953674316 -0.23906250298023224 -2.885637044906616 0.08765604346990585 2.4158005714416504 
+** Example of a text file with ".relionnew" extension whose name may appear in Parameter 14 when generating 
+defocused images, phases or complex amplitudes. All numeric parameter values are given either in angstroms or degrees.
+The entries in each line are as following: 'index','rlnImageName','rlnOriginXAngst','rlnOriginYAngst','rlnDefocusU','rlnDefocusV','rlnDefocusAngle','rlnAngleRot','rlnAngleTilt','rlnAnglePsi'
+
+0 000027@Extract/job028/raw_data/FoilHole_24015511_Data_24016401_24016403_20200225_0229_Fractions.mrcs 6.0747860000000005 5.763797 -4733.33691 -4973.70459 -1.0750600000000001 56.901502 49.038866 -48.524609999999996
+1 000084@Extract/job028/raw_data/FoilHole_24979112_Data_24016511_24016513_20200225_0900_Fractions.mrcs 3.954763 -1.84023 10492.974609 10432.435547 -75.39655 131.376496 40.427904999999996 -89.30115
+2 000097@Extract/job028/raw_data/FoilHole_24015641_Data_24016401_24016403_20200225_0336_Fractions.mrcs 0.27979699999999996 -3.8142400000000003 7113.157227 6892.040039 -83.40009 108.881904 24.085185 -110.51613
+3 000006@Extract/job028/raw_data/FoilHole_24978107_Data_24016511_24016513_20200225_0556_Fractions.mrcs 1.8157740000000002 3.186774 5342.791015999999 5342.791015999999 46.90181 47.026806 6.831614999999999 125.40969399999999
+4 000114@Extract/job028/raw_data/FoilHole_25057719_Data_24016511_24016513_20200226_1052_Fractions.mrcs -1.0722399999999999 -0.61524 9617.179688 9452.393555 -69.36966 93.474083 36.806884000000004 7.076600999999999
+5 000089@Extract/job028/raw_data/FoilHole_25056872_Data_24016511_24016513_20200226_0928_Fractions.mrcs -1.6942099999999998 0.5907859999999999 4516.510742 4149.159668 -87.56658 48.633057 27.932356 -33.94515
+6 000047@Extract/job028/raw_data/FoilHole_24979126_Data_24016401_24016403_20200225_0918_Fractions.mrcs -3.8332 1.047786 1699.285645 1511.013916 -3.4231199999999995 123.60555 47.735718 82.492642
+7 000003@Extract/job028/raw_data/FoilHole_25040917_Data_24016401_24016403_20200225_2010_Fractions.mrcs 0.444774 7.445786 1898.1109620000002 1568.910889 -89.99998000000001 64.82292 32.071253000000006 -51.04459
+8 000090@Extract/job028/raw_data/FoilHole_25057807_Data_24016511_24016513_20200226_1229_Fractions.mrcs 0.5907859999999999 3.186774 3255.9536129999997 2939.893311 89.999992 118.02816399999999 26.318164000000003 -126.2512
+9 000036@Extract/job028/raw_data/FoilHole_25040886_Data_24016401_24016403_20200225_1941_Fractions.mrcs -5.496230000000001 6.988786 3605.345703 3256.579346 -86.0445 95.15947299999999 20.568626000000002 57.112438
+10 000068@Extract/job028/raw_data/FoilHole_24015642_Data_24016511_24016513_20200225_0337_Fractions.mrcs -9.7742 0.298763 8800.291992 8632.805664 -80.19451 80.50514799999999 43.051194 -156.06998000000002
 
 ========================================================================================== 
 ** Example of a text file whose name may appear in Parameter 14 when generating a 3D 

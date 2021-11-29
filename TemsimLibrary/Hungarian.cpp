@@ -41,6 +41,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <cfloat> // for DBL_MAX
 #include <cmath>  // for fabs()
+#include <stdexcept>
 #include "Hungarian.h"
 
 using namespace std;
@@ -106,7 +107,7 @@ void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double
 	{
 		value = distMatrixIn[row];
 		if (value < 0)
-			throw std::exception("Error in HungarinAlgorithm(): all matrix elements have to be non-negative.");
+			throw std::runtime_error("Error in HungarinAlgorithm(): all matrix elements have to be non-negative.");
 		distMatrix[row] = value;
 	}
 

@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <xstring>
 #include <vector>
-//#include "Hungarian.h"
+#include "Hungarian.h"
 #include "pdb.h"
 
 using namespace std;
@@ -138,6 +138,22 @@ int main(int argc, char* argv[])
 	}
 
 	// line 8
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 8th parameter: Hungarian algorithm switch
+	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
+	{
+		printf("\n!!!Error reading Hungarian algorithm switch from input parameter file.");
+		return -1;
+	}
+	int nHungarian = 0; // 0 = don't use Hungarian algorithm, 1 = use it
+	nHungarian = atoi(cparam);
+	switch (nHungarian)
+	{
+	case 0: printf("\nHungarian algorithm won't be used for atom matching."); break;
+	case 1: printf("\nHungarian algorithm will be used for atom matching."); break;
+	default: printf("\n!!!Unknown Hungarian algorithm switch value in the input parameter file."); return -1;
+	}
+
+	// line 9
 	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 8th parameter: output file name
 	if (sscanf(cline, "%s %s", ctitle, outfile) != 2)
 	{
@@ -145,7 +161,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	// line 9
+	// line 10
 	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 9th parameter: free form first line for the output file
 	if (sscanf(cline, "%s %s", ctitle, cfileinfo) != 2)
 	{
@@ -156,23 +172,24 @@ int main(int argc, char* argv[])
 	fclose(ffpar);
 
 
-	// read input file1 (test structure)
+	// read input file0 (test structure)
+	printf("\n");
 	float xctblength, yctblength, zctblength;
 	pdbdata pd;
 	pdbdata_init(&pd);
 	if (nfiletype == 0)
 	{
-		printf("Reading input file1 %s in PDB format ...\n", pdbfile);
+		printf("\nReading input file1 %s in PDB format ...", pdbfile);
 		if (read_pdb(pdbfile, &pd) == -1) return -1; // read PDB file
 	}
 	else if (nfiletype == 1)
 	{
-		printf("Reading input file1 %s in Vesta XYZ export format ...\n", pdbfile);
+		printf("\nReading input file1 %s in Vesta XYZ export format ...", pdbfile);
 		if (data_from_VestaXYZfile(pdbfile, &pd) == -1) return -1; // read Vesta export XYZ file
 	}
 	else if (nfiletype == 2)
 	{
-		printf("Reading input file1 %s in Kirkland XYZ format ...\n", pdbfile);
+		printf("\nReading input file1 %s in Kirkland XYZ format ...", pdbfile);
 		if (data_from_KirklandXYZfile(pdbfile, &pd, &xctblength, &yctblength, &zctblength) == -1) return -1; // read Kirkland XYZ file
 
 		if ((anglez || angley || anglez2) && (xctblength <= 0 || yctblength <= 0 || zctblength <= 0))
@@ -181,26 +198,36 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 	}
+	if (pd.natoms < 2)
+	{
+		printf("\n!!!ERROR: fewer than 2 atoms in the input file %s.", pdbfile);
+		return -1;
+	}
 
-	// read input file2 (reference structure)
+
+	// read input file1 (reference structure)
 	pdbdata pd1;
 	pdbdata_init(&pd1);
 	if (nfiletype1 == 1)
 	{
-		printf("Reading input file2 %s in Vesta XYZ export format ...\n", pdbfile1);
+		printf("\nReading input file2 %s in Vesta XYZ export format ...", pdbfile1);
 		if (data_from_VestaXYZfile(pdbfile1, &pd1) == -1) return -1; // read Vesta export XYZ file
 	}
 	else if (nfiletype1 == 0)
 	{
-		printf("Reading input file2 %s in PDB format ...\n", pdbfile1);
+		printf("\nReading input file2 %s in PDB format ...", pdbfile1);
 		if (read_pdb(pdbfile1, &pd1) == -1) return -1; // read PDB file
 	}
 	else if (nfiletype1 == 2)
 	{
-		printf("Reading input file2 %s in Kirkland XYZ format ...\n", pdbfile1);
+		printf("\nReading input file2 %s in Kirkland XYZ format ...", pdbfile1);
 		if (data_from_KirklandXYZfile(pdbfile1, &pd1) == -1) return -1; // read Kirkland XYZ file
 	}
-	
+	if (pd1.natoms < 2)
+	{
+		printf("\n!!!ERROR: fewer than 2 atoms in the input file %s.", pdbfile1);
+		return -1;
+	}
 
 	//translate element symbols into atomic numbers
 	int* ia = (int*)malloc(pd.natoms * sizeof(int));
@@ -303,7 +330,7 @@ int main(int argc, char* argv[])
 
 	printf("\nCalculating distances between atoms in the %s test file ...", pdbfile);
 	double disttot(0), rmintot = AtomDist(pd.adata[0], pd.adata[1]);
-	for (int i = 0; i < pd.natoms - 1; i++)
+	for (int i = 0; i < pd.natoms - 2; i++)
 	{
 		double r, rmin = AtomDist(pd.adata[i], pd.adata[i + 1]);
 		for (int j = i + 2; j < pd.natoms; j++)
@@ -320,7 +347,7 @@ int main(int argc, char* argv[])
 
 	printf("\nCalculating distances between atoms in the %s reference file ...", pdbfile1);
 	disttot = 0.0; rmintot = AtomDist(pd1.adata[0], pd1.adata[1]);
-	for (int i = 0; i < pd1.natoms - 1; i++)
+	for (int i = 0; i < pd1.natoms - 2; i++)
 	{
 		double r, rmin = AtomDist(pd1.adata[i], pd1.adata[i + 1]);
 		for (int j = i + 2; j < pd1.natoms; j++)
@@ -335,11 +362,10 @@ int main(int argc, char* argv[])
 	printf("\nAverage distance between closest pairs of atoms in the reference structure from %s = %g.", pdbfile1, disttot);
 	printf("\nMinimum distance between closest pairs of atoms in the reference structure from %s = %g.", pdbfile1, rmintot);
 
-	// for each atom in the reference structure pd1 find the closest atom in the test structure pd, and save the results in the new "double" structure pd2 
+
+	printf("\n\nCalculating all pair-wise distances between atoms in %s test file and those in %s reference file ...", pdbfile, pdbfile1);
 	vector< vector<double> > mR2(pd1.natoms);
 	for (int i = 0; i < pd1.natoms; i++) mR2[i].resize(pd.natoms);
-
-	printf("\nCalculating pair-wise  %s test file with those in %s reference file ...", pdbfile, pdbfile1);
 	for (int i = 0; i < pd1.natoms; i++)
 	{
 		for (int j = 0; j < pd.natoms; j++)
@@ -348,45 +374,46 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	/*
-	//THIS IS VERY SLOW - may be OK for 100 atoms or so, but definitely not for 10,000
-	printf("\nUsing Hungarian algorithm to find the optimal bipartate matching ...");
-	HungarianAlgorithm HungAlgo;
-	vector<int> assignment;
-	double cost = HungAlgo.Solve(mR2, assignment);
+	// for each atom in the reference structure pd1 find the closest atom in the test structure pd, and save the results in the new "double" structure pd2 
+	if (nHungarian)
+	{
+		//THIS IS VERY SLOW - may be OK for 100 atoms or so, but definitely not for 10,000
+		printf("\nUsing Hungarian algorithm to find the optimal bipartate matching ...");
+		HungarianAlgorithm HungAlgo;
+		vector<int> assignment;
+		double cost = HungAlgo.Solve(mR2, assignment);
 
-	for (int i = 0; i < pd1.natoms; i++)
-	{
-		pd1.adata[i].tempFactor = assignment[i]; // index of the closest atom from the test strcture
-		pd1.adata[i].occupancy = sqrt(mR2[i][assignment[i]]); // distance to the closest atom
-	}
-	*/
-	
-	// this is a simple and fast, but imperfect, alternative to optimal bipartate matching
-	printf("\nSearching for closest atom pairs ...");
-	for (int i = 0; i < pd1.natoms; i++)
-	{
-		int jmin(0);
-		double r2min = mR2[i][jmin];
-		for (int j = 1; j < pd.natoms; j++)
+		for (int i = 0; i < pd1.natoms; i++)
 		{
-			if (mR2[i][j] < r2min)
+			pd1.adata[i].tempFactor = assignment[i]; // index of the closest atom from the test strcture
+			pd1.adata[i].occupancy = sqrt(mR2[i][assignment[i]]); // distance to the closest atom
+		}
+	}
+	else
+	{
+		// this is a simple and fast, but imperfect, alternative to optimal bipartate matching
+		printf("\nRunning a simple sequential search for closest atom pairs ...");
+		for (int i = 0; i < pd1.natoms; i++)
+		{
+			int jmin = -1;
+			double r2min = std::numeric_limits<double>::max();
+			for (int j = 0; j < pd.natoms; j++)
 			{
-				if (pd.adata[jmin].tempFactor = -1) // if this test atom has not been already matched 
+				if (pd.adata[j].tempFactor != -1) continue; // if this test atom has been already matched, skip it
+				if (mR2[i][j] < r2min)
 				{
 					r2min = mR2[i][j];
 					jmin = j;
 				}
 			}
-		}
-		if (r2min < DistMax2)
-		{
-			pd1.adata[i].tempFactor = jmin; // index of the closest atom from the test strcture
-			pd1.adata[i].occupancy = sqrt(mR2[i][jmin]); // distance to the closest atom
-			pd.adata[jmin].tempFactor = i; // mark this test atom as already matched
+			if (r2min < DistMax2) // if the found minimal distance is smaller than the defined upper limit, then mark the match
+			{
+				pd1.adata[i].tempFactor = jmin; // index of the closest atom from the test strcture
+				pd1.adata[i].occupancy = sqrt(mR2[i][jmin]); // distance to the closest atom
+				pd.adata[jmin].tempFactor = i; // mark this test atom as already matched
+			}
 		}
 	}
-	
 
 	// calculate average distance and std
 	int nodup = 0;
@@ -441,7 +468,7 @@ int main(int argc, char* argv[])
 	}
 
 	// output to the target file
-	printf("\nWriting output comparison file %s ...\n", outfile);
+	printf("\nWriting output comparison file %s ...", outfile);
 	fprintf(ff, "\n");
 	int jmin;
 	for (int i = 0; i < pd1.natoms; i++)
@@ -455,7 +482,7 @@ int main(int argc, char* argv[])
 	free(ia1);
 	free(ia);
 
-	printf("Finished!");
+	printf("\nFinished!\n");
 
 	return 0;
 }

@@ -113,20 +113,28 @@ of the 3D space around the Z and Y' axes, which corresponds to the optic axis = 
 Each even column (starting from the fourth one) contains a defocus distance in 
 angstroms along the Z'' axis. The number of lines in this file is not limited.
 An example of a valid "rotation angles and defocus distances" file is given below. 
-(b) If the file extension is ".RELION", then this file contains an arbitrary number of lines,
-each line containing exactly nine entries, separated by white spaces, with the following contents:
-1st entry contains the sequential number of the line - this parameter is not used in MsctKirkland.exe
-2nd entry contains the name of the file where the data was sourced from - this parameter is not used in MsctKirkland.exe
-3rd entry is the defocus distance dx corresponding to the x coordinate
-4th entry is the defocus distance dy corresponding to the y coordinate
-5th entry is the image shift along x in angstroms 
-6th entry is the image shift along y in angstroms 
-7th entry is the rotation angle "rot" around the Z coordinate in radians
-8th entry is the rotation angle "tilt" around the Y' coordinate in radians
-9th entry is the rotation angle "psi" around the Z" coordinate in radians
+(b) If the file extension is ".relionnew", then this file contains an arbitrary number of lines,
+each line containing exactly ten entries, separated by white spaces, with the following contents:
+1st entry contains the sequential number of the line - this parameter is not used
+2nd entry contains the name of the file where the data was sourced from - this parameter is not used
+3rd entry is the image shift along x in angstroms 
+4th entry is the image shift along y in angstroms 
+5th entry is the defocus distance dx corresponding to the x coordinate
+6th entry is the defocus distance dy corresponding to the y coordinate
+7th entry contains the astigmatism angle (alpha) in degrees
+8th entry is the rotation angle "rot" around the Z coordinate in degrees
+9th entry is the rotation angle "tilt" around the Y' coordinate in degrees
+10th entry is the rotation angle "psi" around the Z" coordinate in degrees
 Examples of defocus/orientation files can be found in ReadmePhaseRetrieval.txt and ReadmeMsctKirkland.txt files.
 The input file must be present in the same folder where Pdb.exe is started from, or, 
 alternatively, the filename can include a fully specified pathname (OS specific). 
+The ".txt" or ".relionnew" orientation files are usually used in this program in order to create a graphical
+representation of the distribution of illumination directions on the unit sphere in 3D. This is achieved in this program
+by creating a "fake" atomic structure containing only H atoms located on the surface of a 3D sphere at the points, 
+corresponding to illumination directions present in the input orientation file. If the output is produced
+in the form of a Vesta XYZ file (Parameter 2 set to 1), the output file with the fake H atom structure can be loaded
+and viewed in Vesta. This can be useful, in particular, in order to check if there are any particular missing
+regions of illumination directions in the input orientation file.
 
 Parameter 2 can be equal to 0, 1, 2 or 3. It defines the input file format.
 "0" corresponds to PDB input file format. 
@@ -143,6 +151,10 @@ kept the same. The number of carbon atoms can also be slightly different between
 here is borrowed from EJ Kirkland's pdb2xyz.cpp program (https://sourceforge.net/projects/computem/files/). It
 uses the following parameters, in particular: CDENSITY = 2.0 (density in gm/cm^3 approx. for amorphous C),
 CFILL_FRACTION = 0.9; (filling fraction for this density) and RMIN = 1.4 (min separation distance of C (in Angstroms)).
+Note that amorphous ice can be also added to molecules, but this happens in subsequent simulation of defocused images
+in the MsctKirkland program. Unlike the carbon support for nanoparticles, the ice layer in cryo-EM is different for
+each instance of the molecule within a single dataset. Therefore, a different pseudo-random ice layer is added at
+each illumination angle in MsctKirkland, rather than a single ice layer associated with the input XYZ structure.
 
 Parameter 4 contains the side length (in Angstroms) of the virtual cube in 3D that is supposed to contain the atomic
 structure inside (see details below).

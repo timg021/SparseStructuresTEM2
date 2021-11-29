@@ -187,7 +187,7 @@ namespace xar
 	/*!
 		\brief		Transposes the matrix
 		\param		None
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -220,7 +220,7 @@ namespace xar
 		/*!
 			\brief		Flips the matrix along the second dimension
 			\param		None
-			\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+			\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 						called from inside this function
 			\return		\a None
 			\par		Description:
@@ -250,7 +250,7 @@ namespace xar
 		\param		iXRight	number of X elements to be trimmed from the end
 		\exception	std::invalid_argument is thrown if the number of elements to trim is either
 					negative or exceeds the array size
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -299,7 +299,7 @@ namespace xar
 		\param		iXRight	number of X elements to be added at the end
 		\param		tPadVal	the value assigned to all new elements
 		\exception	std::invalid_argument is thrown if the number of elements to pad is negative
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -341,7 +341,7 @@ namespace xar
 		\param		iXLeft	number of X elements to be added at the beginning
 		\param		iXRight	number of X elements to be added at the end
 		\exception	std::invalid_argument is thrown if the number of elements to pad is negative or exceeds the array size
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -410,7 +410,7 @@ namespace xar
 	/*!
 		\brief		Adds new elements with a given value at the edges of the array up to the nearest integer powers of 2
 		\param		tPadVal	the value assigned to all new elements
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -445,7 +445,7 @@ namespace xar
 		\param		iXRight	number of X elements to be replaced at the end
 		\param		tMaskVal	the value to be assigned to all masked elements
 		\exception	std::invalid_argument is thrown if the number of elements to mask is negative
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -493,7 +493,7 @@ namespace xar
 		\param		lngMoveYPoints	the span of the Y translation; negative values correspond to translations upwards
 		\param		lngMoveXPoints	the span of the X translation; negative values correspond to translations to the left
 		\param		tFillVal	the value to be assigned to all vacated elements
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -589,7 +589,7 @@ namespace xar
 		\exception	std::invalid_argument is thrown if any rectangle boundary is negative or
 					exceeds the	corresponding array boundary, or if lower rectangle boundary is
 					larger or equal to the higher rectangle boundary
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -622,7 +622,7 @@ namespace xar
 		\param		dblSigmaY	standard deviation of the Gaussian in the Y direction
 		\param		dblSigmaX	standard deviation of the Gaussian in the X direction
 		\exception	std::invalid_argument is thrown if dblSigmaX or dblSigmaY are not positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -703,7 +703,7 @@ namespace xar
 		\param		dblSigmaY	standard deviation of the Gaussian in the Y direction
 		\param		dblSigmaX	standard deviation of the Gaussian in the X direction
 		\exception	std::invalid_argument is thrown if dblSigmaX or dblSigmaY are not positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -775,7 +775,7 @@ namespace xar
 		\brief		Imposes an Exponential envelope over the existing elements in the array
 		\param		dblSigma	half-diameter (in pixels) of the symmetric Lorentz kernel (in the real space)
 		\exception	std::invalid_argument is thrown if dblSigma is not positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -850,7 +850,7 @@ namespace xar
 		\param		dblWidthY	width (in pixels) of the Epanechnikov kernel in the Y direction
 		\param		dblWidthX	width (in pixels) of the Epanechnikov kernel in the X direction
 		\exception	std::invalid_argument is thrown if dblWidthX or dblWidthY are not positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -918,7 +918,7 @@ namespace xar
 		\brief		Imposes an axially symmetrical Epanechnikov envelope over the existing elements in the array
 		\param		dblWidth	diameter (in pixels) of the Epanechnikov kernel
 		\exception	std::invalid_argument is thrown if dblWidth is not positive
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:

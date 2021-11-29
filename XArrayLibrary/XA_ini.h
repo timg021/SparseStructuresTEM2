@@ -243,7 +243,7 @@ XA_API void DMessage(const string message_string); // displays simple Message
 //! Displays warnings formed from an exception's what() string
 XA_API void DWhat(const string what_out);
 
-XA_API int _matherr(struct _exception* pE); //see xa_ini.cpp
+//XA_API int _matherr(struct _exception* pE); //see xa_ini.cpp
 
 double ExeTimer(bool initialize); //measures elapsed time
 string ExeTimer1(); //measures elapsed time

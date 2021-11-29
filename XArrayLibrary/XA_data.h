@@ -109,7 +109,7 @@ namespace xar
 		\param		pchFilename	Full name of the file to be written into
 		\exception  std::invalid_argument is thrown if XArray1D object contains complex values
 		\exception  std::runtime_error is thrown if any of the file write operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -173,7 +173,7 @@ namespace xar
 		\param		bCheck	Determines if to perform the check for the equidistance of x-dataa
 		\exception  std::invalid_argument is thrown if XArray1D object has a complex value type
 		\exception  std::runtime_error is thrown if any of the file read operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -209,7 +209,7 @@ namespace xar
 		for (i = 0; i < iSize; i++)
 		{
 			fgets(buf, 128, fp);
-			sscanf(buf, "%s %s", buf1, buf2);
+			if (sscanf(buf, "%s %s", buf1, buf2) != 2) throw std::invalid_argument("error reading file in XArData::ReadFileDAT");
 			temp[i] = strtod(buf1, 0);
 			rXAr1D[i] = T(strtod(buf2, 0));
 		}
@@ -242,6 +242,70 @@ namespace xar
 
 
 	//---------------------------------------------------------------------------
+	//Function ReadFileDAT2
+	//
+	//	Reads two real XArray1D objects from an ASC Data file
+	//
+	/*!
+		\brief		Reads real 2 XArray1D objects from an ASC Data file
+		\param		rXAr1D	Reference to an XArray1D<T> object to be read in from the first column
+		\param		rYAr1D	Reference to an XArray1D<T> object to be read in from the second column
+		\param		pchFilename	Full name of the file to be read from
+		\param		dblWavelength	Wavelength to be used in the Wavehead1D
+		\exception  std::invalid_argument is thrown if XArray1D object has a complex value type
+		\exception  std::runtime_error is thrown if any of the file read operations fail
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
+					called from inside this function
+		\return		\a None
+		\par		Description:
+			This function reads two 1D XArray objects from an ASC Data file.
+			The head of the object, except wavelength, is read from the file.
+			The Data file consists of 2 columns of "float" values:
+			(1) the column of arguments, x
+			(2) the column of corresponding array values
+	*/
+	template <class T> static void ReadFileDAT2(XArray1D<T>& rXAr1D, XArray1D<T>& rYAr1D, const char* pchFilename, double dblWavelength)
+	{
+		char buf[129], buf1[129], buf2[129];
+
+		// open file for reading as ASCII text
+		FilePtr fp(pchFilename, "rt");
+
+		// first, count the number of rows in the file
+		index_t i, iSize = 0;
+		for (;;)
+		{
+			if (fgets(buf, 128, fp) <= 0)
+				break;
+			else
+			{
+				iSize++;
+			}
+		}
+		// now, read the file data into rXAr1D and rYAr1D
+		rewind(fp);
+		rXAr1D.Resize(iSize);
+		rYAr1D.Resize(iSize);
+
+		// read arrays
+		for (i = 0; i < iSize; i++)
+		{
+			fgets(buf, 128, fp);
+			if (sscanf(buf, "%s %s", buf1, buf2) != 2) throw std::invalid_argument("error reading file in XArData::ReadFileDAT2");
+			rXAr1D[i] = T(strtod(buf1, 0));
+			rYAr1D[i] = T(strtod(buf2, 0));
+		}
+		IXAHWave1D* ph1 = CreateWavehead1D();
+		ph1->SetData(dblWavelength, 0, double(iSize));
+		rXAr1D.SetHeadPtr(ph1);
+		IXAHWave1D* ph2 = CreateWavehead1D();
+		ph2->SetData(dblWavelength, 0, double(iSize));
+		rYAr1D.SetHeadPtr(ph2);
+	}
+
+
+#ifdef WINDOWS_OS_TEG
+	//---------------------------------------------------------------------------
 	//Function WriteFileGRD
 	//
 	//	Writes real XArray2D object into an ASC or BIN GRD file
@@ -255,7 +319,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if XArray2D object does not have a Wavehead2D
 		\exception  std::invalid_argument is thrown if 'filetype' parameter is not eGRDBIN or eGRDASC
 		\exception  std::runtime_error is thrown if any of the file write operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -439,7 +503,7 @@ namespace xar
 		\param		bForceRead	Determines if the read data may be forced into an XArray2D object with integral value type
 		\exception  std::invalid_argument is thrown if bForceRead is false and XArray2D object has integral value type
 		\exception  std::runtime_error is thrown if any of the file read operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -617,6 +681,436 @@ namespace xar
 		rXAr2D.SetHeadPtr(ph2);
 	}
 
+	//---------------------------------------------------------------------------
+	//Function ReadFileRAW
+	//
+	//	Reads an XArray2D object from a binary RAW file
+	//
+	/*!
+		\brief		Reads an XArray2D object from an ASC or BIN RAW file
+		\param		rXAr2D	Reference to an XArray2D<T> object to be read in
+		\param		pchFilename	Full name of the file to be read from
+		\param		nDim1 First array dimension (ny)
+		\param		nDim2 Second array dimension (nx)
+		\param		nHeaderLength File header length in bytes
+		\param		nElementLength Array element length in bytes
+		\param		bBigEndian True for BigEndian array elements, False for LittleEndian array elements
+
+		\exception  std::runtime_error is thrown if any of the file read operations fail
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
+					called from inside this function
+		\return		\a None
+		\par		Description:
+			This function reads a 2D XArray object from a binary RAW file
+	*/
+	template <class T> static void ReadFileRAW(XArray2D<T>& rXAr2D, const char* pchFilename, index_t nDim1, index_t nDim2, index_t nHeaderLength, index_t nElementLength, bool bBigEndian)
+	{
+		unsigned int nRowLength; // length of one data row in bytes in input file
+		vector<T> vTmp;
+		vector<char> vChar(nHeaderLength);
+		vector<float> vFlt; // temporary array to read one data row from input file
+		vector<double> vDbl; // temporary array to read one data row from input file
+
+		if (nElementLength == sizeof(float))
+		{
+			vFlt.resize(nDim2); nRowLength = unsigned(nDim2 * sizeof(float));
+		}
+		else if (nElementLength == sizeof(double))
+		{
+			vDbl.resize(nDim2); nRowLength = unsigned(nDim2 * sizeof(double));
+		}
+		else throw std::runtime_error("runtime_error in XArData::ReadFileRAW (unsupported nElementLength)");
+
+		// determine the endianness of the system
+		if (IsBigEndian() != bBigEndian)
+			throw std::runtime_error("runtime_error in XArData::ReadFileRAW (the function has been called with the Endianness that is different from the Endianness of this computer)");
+
+		// open file
+		int fd = _open(pchFilename, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL, _S_IREAD);
+		if (fd == -1)
+			throw std::runtime_error("cannot open file for reading in XArData::ReadFileRAW");
+
+		// read file header
+		if (nHeaderLength > 0)
+		{
+			if (_read(fd, &vChar[0], (unsigned)nHeaderLength) != (unsigned)nHeaderLength)
+			{
+				_close(fd);
+				throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading file header)");
+			}
+		}
+		vChar.clear();
+
+		// read array
+		rXAr2D.Resize(nDim1, nDim2);
+		if (nElementLength == sizeof(float)) // float data
+		{
+			for (index_t i = 0; i < nDim1; i++)
+			{
+				if (_read(fd, &vFlt[0], nRowLength) != nRowLength)
+				{
+					_close(fd);
+					throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading array from file)");
+				}
+				for (index_t j = 0; j < nDim2; j++) rXAr2D[i][j] = T(vFlt[j]);
+			}
+		}
+		else if (nElementLength == sizeof(double)) // double data  
+		{
+			for (index_t i = 0; i < nDim1; i++)
+			{
+				if (_read(fd, &vDbl[0], nRowLength) != nRowLength)
+				{
+					_close(fd);
+					throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading array from file)");
+				}
+				for (index_t j = 0; j < nDim2; j++) rXAr2D[i][j] = T(vDbl[j]);
+			}
+		}
+
+		_close(fd);
+	}
+
+
+#else //#ifdef WINDOWS_OS_TEG
+
+	//---------------------------------------------------------------------------
+	//Function WriteFileGRD
+	//
+	//	Writes real XArray2D object into an ASC or BIN GRD file
+	//
+	/*!
+		\brief		Writes real XArray2D object into an ASC or BIN GRD file
+		\param		rXAr2D	Reference to an XArray2D<T> object to be saved
+		\param		pchFilename	Full name of the file to be written into
+		\param		filetype eGRDBIN or eGRDASC for BIN and ASC files respectively
+		\exception  std::invalid_argument is thrown if XArray2D object contains complex values
+		\exception  std::invalid_argument is thrown if XArray2D object does not have a Wavehead2D
+		\exception  std::invalid_argument is thrown if 'filetype' parameter is not eGRDBIN or eGRDASC
+		\exception  std::runtime_error is thrown if any of the file write operations fail
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
+					called from inside this function
+		\return		\a None
+		\par		Description:
+			This function writes a real 2D XArray object into a BIN or ASC GRD file (GRD file format
+			is used	e.g. in SURFER program by Golden Software). The head of the object, except wavelength,
+			is saved in the file. The array data is always stored as "float" values. The GRD file
+			contains:
+			(1) string "DSAA" or "DSBB" (in ASC and BIN GRD files, respectively)
+			(2) nx ny  - array dimensions as "short"s separated by a white space
+			(3) xlo xhi - lower and higher X boundaries as "double"s (in ASC format, separated by a white space)
+			(4) ylo yhi - lower and higher Y boundaries as "double"s (in ASC format, separated by a white space)
+			(5) zlo zhi - mnimum and maximum array value as "double"s (in ASC format, separated by a white space)
+				!!! zlo will be replaced with Wavehead2d.m_dblWl
+			(6) u[i][j] - array values as "float"s (in ASC format, separated by a white space),
+							j index changes most rapidly
+	*/
+	template <class T> static void WriteFileGRD(const XArray2D<T>& rXAr2D, const char* pchFilename, _eFileType filetype)
+	{
+		if (!rXAr2D.GetHeadPtr())
+			throw std::invalid_argument("invalid_argument 'rXAr2D' in XArData::WriteFileGRD (no head)");
+		const IXAHWave2D* ph2 = dynamic_cast<const IXAHWave2D*>(rXAr2D.GetHeadPtr());
+		if (!ph2)
+			throw std::invalid_argument("invalid_argument 'rXAr2D' in XArData::WriteFileGRD (the head is not a Wavehead2D)");
+		ph2->Validate();
+
+		if (rXAr2D.GetValuetype() == eXAFComplex || rXAr2D.GetValuetype() == eXADComplex)
+			throw std::invalid_argument("invalid_argument 'rXAr2D' in XArData::WriteFileGRD (complex data)");
+
+		// the following statements will throw exception if there is bad data in the array
+		double dblDataMax = rXAr2D.Norm(eNormMax);
+		double dblDataMin = rXAr2D.Norm(eNormMin);
+
+		index_t ny = rXAr2D.GetDim1();
+		index_t nx = rXAr2D.GetDim2();
+		double wl = ph2->GetWl();
+		double ylo = ph2->GetYlo();
+		double yhi = ph2->GetYhi();
+		double xlo = ph2->GetXlo();
+		double xhi = ph2->GetXhi();
+
+		index_t i, j;
+		short stemp;
+		float ftemp;
+		char ctemp[5] = "DSBB";
+
+		// open file
+		FilePtr fp;
+		switch (filetype)
+		{
+		case eGRDBIN:
+			fp.Open(pchFilename, "wb"); 
+			break;
+		case eGRDASC:
+			fp.Open(pchFilename, "wt");
+			break;
+		default: throw std::invalid_argument("invalid_argument 'filetype' in XArData::WriteFileGRD");
+		}
+
+		// write GRD head
+		switch (filetype)
+		{
+		case eGRDBIN:
+			if (fwrite(&ctemp[0], sizeof(char), 4, fp) - 4)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing DSBB)");
+			stemp = (short)(nx);
+			if (fwrite(&stemp, sizeof(short), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing nx)");
+			stemp = (short)(ny);
+			if (fwrite(&stemp, sizeof(short), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing ny)");
+			if (fwrite(&xlo, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing xlo)");
+			if (fwrite(&xhi, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing xhi)");
+			if (fwrite(&ylo, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing ylo)");
+			if (fwrite(&yhi, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing yhi)");
+			if (fwrite(&dblDataMin, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing zlo)");
+			if (fwrite(&dblDataMax, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing zhi)");
+			break;
+		case eGRDASC:
+			if (fprintf(fp, "%s\n", "DSAA") <= 0)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing DSAA)");
+			if (fprintf(fp, "%zi   %zi\n", nx, ny) <= 0)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing nx or ny)");
+			if (fprintf(fp, "%.15g   %.15g\n", xlo, xhi) <= 0)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing xlo or xhi)");
+			if (fprintf(fp, "%.15g   %.15g\n", ylo, yhi) <= 0)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing ylo or yhi)");
+			//if (fprintf(fp, "%.15g   %.15g\n", dblDataMin, dblDataMax) <= 0)
+			if (fprintf(fp, "%.15g   %.15g\n", wl, dblDataMax) <= 0)
+				throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing ylo or yhi)");
+			break;
+		}
+
+		// write array
+		switch (filetype)
+		{
+		case eGRDBIN:
+		{
+			for (index_t i = 0; i < ny; i++)
+				for (index_t j = 0; j < nx; j++)
+				{
+					ftemp = (float)(rXAr2D[i][j]);
+					fwrite(&ftemp, sizeof(float), 1, fp);
+				}
+		}
+		break;
+		case eGRDASC:
+			for (i = 0; i < ny; i++)
+				for (j = 0; j < nx; j++)
+					if (fprintf(fp, "%.6g\n", (float)rXAr2D[i][j]) <= 0)
+						throw std::runtime_error("runtime_error in XArData::WriteFileGRD (error writing array)");
+			break;
+		}
+
+	}
+
+
+	//---------------------------------------------------------------------------
+	//Function ReadFileGRD
+	//
+	//	Reads an XArray2D object from an ASC or BIN GRD file
+	//
+	/*!
+		\brief		Reads an XArray2D object from an ASC or BIN GRD file
+		\param		rXAr2D	Reference to an XArray2D<T> object to be read in
+		\param		pchFilename	Full name of the file to be read from
+		\param		dblWavelength	Wavelength to be used in the Wavehead2D; if dblWavelength == 0, sets Wavehead2D.m_dblWl = zlo
+		\param		bForceRead	Determines if the read data may be forced into an XArray2D object with integral value type
+		\exception  std::invalid_argument is thrown if bForceRead is false and XArray2D object has integral value type
+		\exception  std::runtime_error is thrown if any of the file read operations fail
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
+					called from inside this function
+		\return		\a None
+		\par		Description:
+			This function reads a 2D XArray object from a BIN or ASC GRD file (GRD file format is used
+			e.g. in SURFER program by Golden Software). The head of the object, except wavelength,
+			is read from the file. As file data is always of "float" type, the loss of data is very likely,
+			if the GRD file is read into an XArray2D<T> object with integral type T (unless all numbers
+			in the GRD file are in fact of integral type smaller or equal in size to T).
+			The GRD file contains:
+			(1) strings "DSAA" or "DSBB" (in ASC and BIN GRD files, respectively)
+			(2) nx ny  - array dimensions as "short"s (in ASC format, separated by a white space)
+			(3) xlo xhi - lower and higher X boundaries as "double"s (in ASC format, separated by a white space)
+			(4) ylo yhi - lower and higher Y boundaries as "double"s (in ASC format, separated by a white space)
+			(5) zlo zhi - mnimum and maximum array value as "double"s (in ASC format, separated by a white space)
+			(6) u[i][j] - array values as "float"s (in ASC format, separated by a white space),
+							j index changes most rapidly
+	*/
+	template <class T> static void ReadFileGRD(XArray2D<T>& rXAr2D, const char* pchFilename, double dblWavelength, bool bForceRead = false)
+	{
+		if (std::numeric_limits<T>::is_integer && !bForceRead)
+			throw std::invalid_argument("invalid_argument 'rXAr2D' in XArData::ReadFileGRD (integer XArray2D)");
+
+		char strtemp[5], buf[129], buf1[129];
+		short stemp;
+		index_t i, j, nx, ny;
+		float ftemp;
+		double dtemp;
+		double wl, xlo, xhi, ylo, yhi;
+
+		strcpy(strtemp, "ZZZZ");
+		wl = dblWavelength;
+
+		// open file
+		try
+		{
+			// open file for reading as BIN
+			FilePtr fp(pchFilename, "rb");
+
+			// read attribute
+			strtemp[4] = '\0';
+			if (fread(strtemp, sizeof(char), 4, fp) != 4 || strcmp(strtemp, "DSBB"))
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading file attribute)");
+
+			// read head
+			if (fread(&stemp, sizeof(short), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading nx)");
+			nx = stemp;
+			if (fread(&stemp, sizeof(short), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading ny)");
+			ny = stemp;
+
+			rXAr2D.Resize(ny, nx);
+
+			if (fread(&xlo, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading xlo)");
+			if (fread(&xhi, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading xhi)");
+			if (fread(&ylo, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading ylo)");
+			if (fread(&yhi, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading yhi)");
+			if (fread(&dtemp, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading zlo)");
+			if (fread(&dtemp, sizeof(double), 1, fp) - 1)
+				throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading zhi)");
+
+			// read array
+			for (i=0; i<ny; i++) 
+				for (j=0; j<nx; j++)
+				{ 
+					fread(&ftemp, sizeof(float), 1, fp);
+					rXAr2D[i][j] = T(ftemp);
+				}
+		}
+		catch (std::runtime_error&) // if BIN reading failed, try ASC
+		{
+			try
+			{
+				// open file for reading as ASC
+				FilePtr fp(pchFilename, "rt");
+
+				// read attribute
+				if (fscanf(fp, "%4c\n", strtemp) <= 0 || strcmp(strtemp, "DSAA"))
+					throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading file attribute)");
+
+				// read head
+				if (fscanf(fp, "%s %s", buf, buf1) <= 0)
+					throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading nx or ny)");
+				nx = strtol(buf, 0, 10); ny = strtol(buf1, 0, 10);
+				rXAr2D.Resize(ny, nx);
+				if (fscanf(fp, "%s %s", buf, buf1) <= 0)
+					throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading xlo or xhi)");
+				xlo = strtod(buf, 0); xhi = strtod(buf1, 0);
+				if (fscanf(fp, "%s %s", buf, buf1) <= 0)
+					throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading ylo or yhi)");
+				ylo = strtod(buf, 0); yhi = strtod(buf1, 0);
+				if (fscanf(fp, "%s %s", buf, buf1) <= 0)
+					throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading zlo or zhi)");
+				if (!wl) wl = strtod(buf, 0); // if dblWavelength == 0 in the function call, wl is set to zlo
+
+				// read array
+				for (i = 0; i < ny; i++)
+					for (j = 0; j < nx; j++)
+					{
+						if (fscanf(fp, "%s", buf) <= 0)
+							throw std::runtime_error("runtime_error in XArData::ReadFileGRD (error reading array)");
+						rXAr2D[i][j] = T(strtod(buf, 0));
+					}
+			}
+			catch (std::runtime_error&) { throw; } // if ASC reading failed - abort
+		}
+
+		// create and attach a new head
+		IXAHWave2D* ph2 = CreateWavehead2D();
+		ph2->SetData(wl, ylo, yhi, xlo, xhi);
+		rXAr2D.SetHeadPtr(ph2);
+	}
+
+	//---------------------------------------------------------------------------
+	//Function ReadFileRAW
+	//
+	//	Reads an XArray2D object from a binary RAW file
+	//
+	/*!
+		\brief		Reads an XArray2D object from an ASC or BIN RAW file
+		\param		rXAr2D	Reference to an XArray2D<T> object to be read in
+		\param		pchFilename	Full name of the file to be read from
+		\param		nDim1 First array dimension (ny)
+		\param		nDim2 Second array dimension (nx)
+		\param		nHeaderLength File header length in bytes
+		\param		nElementLength Array element length in bytes
+		\param		bBigEndian True for BigEndian array elements, False for LittleEndian array elements
+
+		\exception  std::runtime_error is thrown if any of the file read operations fail
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
+					called from inside this function
+		\return		\a None
+		\par		Description:
+			This function reads a 2D XArray object from a binary RAW file
+	*/
+	template <class T> static void ReadFileRAW(XArray2D<T>& rXAr2D, const char* pchFilename, index_t nDim1, index_t nDim2, index_t nHeaderLength, index_t nElementLength, bool bBigEndian)
+	{
+		vector<char> vChar(nHeaderLength);
+		float ftemp(0);
+		double dtemp(0);
+
+		// check that the type of element is supported
+		if (nElementLength != sizeof(float) && nElementLength != sizeof(double))
+			throw std::runtime_error("runtime_error in XArData::ReadFileRAW (unsupported nElementLength)");
+
+		// determine the endianness of the system
+		if (IsBigEndian() != bBigEndian)
+			throw std::runtime_error("runtime_error in XArData::ReadFileRAW (the function has been called with the Endianness that is different from the Endianness of this computer)");
+
+		// open file
+		FilePtr fp(pchFilename, "rb");
+
+		// read file header and discard it
+		if (nHeaderLength > 0)
+			if (fread(&vChar[0], sizeof(char), (unsigned)nHeaderLength, fp) != (unsigned)nHeaderLength)
+				throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading file header)");
+		vChar.clear();
+
+		// read array
+		rXAr2D.Resize(nDim1, nDim2);
+		if (nElementLength == sizeof(float)) // float data
+		{
+			for (index_t i = 0; i < nDim1; i++)
+				for (index_t j = 0; j < nDim2; j++)
+				{
+					fread(&ftemp, sizeof(float), 1, fp);
+					rXAr2D[i][j] = T(ftemp);
+				}
+		}
+		else if (nElementLength == sizeof(double)) // double data  
+		{
+			for (index_t i = 0; i < nDim1; i++)
+				for (index_t j = 0; j < nDim2; j++)
+				{
+					fread(&dtemp, sizeof(float), 1, fp);
+					rXAr2D[i][j] = T(dtemp);
+				}
+		}
+	}
+
+#endif // WINDOWS_OS_TEG
 
 	//! Reports the type of a GRD file
 	static _eFileType ReadFileGRDType(const char* pchFilename)
@@ -670,7 +1164,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if XArray2D object does not have a Wavehead2D
 		\exception  std::invalid_argument is thrown if 'filetype' parameter is not eGRCBIN or eGRCASC
 		\exception  std::runtime_error is thrown if any of the file write operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -793,7 +1287,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if XArray2D object does not have a Wavehead2D
 		\exception  std::invalid_argument is thrown if 'filetype' parameter is not eGRCBIN or eGRCASC
 		\exception  std::runtime_error is thrown if any of the file write operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -913,7 +1407,7 @@ namespace xar
 		\param		rXAr2D	Reference to an XArray2D object to be read in
 		\param		pchFilename	Full name of the file to be read from
 		\exception  std::runtime_error is thrown if any of the file read operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1031,7 +1525,7 @@ namespace xar
 		\param		rXAr2D	Reference to an XArray2D object to be read in
 		\param		pchFilename	Full name of the file to be read from
 		\exception  std::runtime_error is thrown if any of the file read operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1178,95 +1672,6 @@ namespace xar
 		return filetype;
 	}
 
-	//---------------------------------------------------------------------------
-//Function ReadFileRAW
-//
-//	Reads an XArray2D object from a binary RAW file
-//
-/*!
-	\brief		Reads an XArray2D object from an ASC or BIN RAW file
-	\param		rXAr2D	Reference to an XArray2D<T> object to be read in
-	\param		pchFilename	Full name of the file to be read from
-	\param		nDim1 First array dimension (ny)
-	\param		nDim2 Second array dimension (nx)
-	\param		nHeaderLength File header length in bytes
-	\param		nElementLength Array element length in bytes
-	\param		bBigEndian True for BigEndian array elements, False for LittleEndian array elements
-
-	\exception  std::runtime_error is thrown if any of the file read operations fail
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
-				called from inside this function
-	\return		\a None
-	\par		Description:
-		This function reads a 2D XArray object from a binary RAW file
-*/
-	template <class T> static void ReadFileRAW(XArray2D<T>& rXAr2D, const char* pchFilename, index_t nDim1, index_t nDim2, index_t nHeaderLength, index_t nElementLength, bool bBigEndian)
-	{
-		unsigned int nRowLength; // length of one data row in bytes in input file
-		vector<T> vTmp;
-		vector<char> vChar(nHeaderLength);
-		vector<float> vFlt; // temporary array to read one data row from input file
-		vector<double> vDbl; // temporary array to read one data row from input file
-
-		if (nElementLength == sizeof(float))
-		{
-			vFlt.resize(nDim2); nRowLength = unsigned(nDim2 * sizeof(float));
-		}
-		else if (nElementLength == sizeof(double))
-		{
-			vDbl.resize(nDim2); nRowLength = unsigned(nDim2 * sizeof(double));
-		}
-		else throw std::runtime_error("runtime_error in XArData::ReadFileRAW (unsupported nElementLength)");
-
-		// determine the endianness of the system
-		if (IsBigEndian() != bBigEndian)
-			throw std::runtime_error("runtime_error in XArData::ReadFileRAW (the function has been called with the Endianness that is different from the Endianness of this computer)");
-
-		// open file
-		int fd = _open(pchFilename, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL, _S_IREAD);
-		if (fd == -1)
-			throw std::runtime_error("cannot open file for reading in XArData::ReadFileRAW");
-
-		// read file header
-		if (nHeaderLength > 0)
-		{
-			if (_read(fd, &vChar[0], (unsigned)nHeaderLength) != (unsigned)nHeaderLength)
-			{
-				_close(fd);
-				throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading file header)");
-			}
-		}
-		vChar.clear();
-
-		// read array
-		rXAr2D.Resize(nDim1, nDim2);
-		if (nElementLength == sizeof(float)) // float data
-		{
-			for (index_t i = 0; i < nDim1; i++)
-			{
-				if (_read(fd, &vFlt[0], nRowLength) != nRowLength)
-				{
-					_close(fd);
-					throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading array from file)");
-				}
-				for (index_t j = 0; j < nDim2; j++) rXAr2D[i][j] = T(vFlt[j]);
-			}
-		}
-		else if (nElementLength == sizeof(double)) // double data  
-		{
-			for (index_t i = 0; i < nDim1; i++)
-			{
-				if (_read(fd, &vDbl[0], nRowLength) != nRowLength)
-				{
-					_close(fd);
-					throw std::runtime_error("runtime_error in XArData::ReadFileRAW (error reading array from file)");
-				}
-				for (index_t j = 0; j < nDim2; j++) rXAr2D[i][j] = T(vDbl[j]);
-			}
-		}
-
-		_close(fd);
-	}
 
 
 	//---------------------------------------------------------------------------
@@ -1283,7 +1688,7 @@ namespace xar
 		\exception  std::invalid_argument is thrown if XArray3D object does not have a Wavehead3D
 		\exception  std::invalid_argument is thrown if 'filetype' parameter is not eGRDBIN or eGRDASC
 		\exception  std::runtime_error is thrown if any of the file write operations fail
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -1351,7 +1756,7 @@ namespace xar
 		size_t dotpos = filetest.find_last_of(".");
 		filetest.replace(dotpos + 1, filetest.length() - dotpos - 1, "xyz");
 		FILE* ff = fopen(filetest.c_str(), "wt");
-		if (!ff) throw std::exception((std::string("Error opening parameter file ") + filetest + ".").c_str());
+		if (!ff) throw std::runtime_error((std::string("Error opening parameter file ") + filetest + ".").c_str());
 		else printf("\nWriting output file %s in Kirkland's XYZ format ...\n", filetest.c_str());
 		fprintf(ff, "%s\n", "test"); // free-form file info line
 		fprintf(ff, "%f %f %f\n", ctblength, ctblength, ctblengthz);

@@ -14,14 +14,22 @@
 #if !defined XA_FILE_H
 #define XA_FILE_H
 
+//#define WINDOWS_OS_TEG 1 // switches on the code using low-level Windows file I/O functions
+
 //---------------------------------------------------------------------------
 //	INCLUDE FILES
 //
 #include "XA_ini.h"
 #include <list>
 #include <fcntl.h>
-#include <io.h>
 #include <sys/stat.h>
+#include <filesystem>
+#include <cstring>
+
+#if defined WINDOWS_OS_TEG
+#include <io.h>
+#endif
+
 
 #undef _WIN32
 //#ifdef _WIN32
@@ -121,7 +129,7 @@ fprintf("a=%d", a);
 		// Member functions
 	};
 
-
+	#if defined WINDOWS_OS_TEG
 	class LLFilePtr
 	// Variant of FilePtr using low-level I/O routines	
 	{
@@ -149,7 +157,7 @@ fprintf("a=%d", a);
 	private:
 		int fd; // file descriptor
 	};
-
+	#endif
 
 	#ifdef _WIN32
 		class Win32FilePtr
@@ -194,9 +202,9 @@ fprintf("a=%d", a);
 //	EXTERNAL FUNCTION PROTOTYPES
 //
 
-	string GetFileExtension(const string& filename);
-	string GetFilenameFromPath(const string& strPath);
-	string GetPathFromFilename(const string& strFilename);
+	string GetFileExtension(const string& filename, bool Convert2Upper = true);
+	string GetFilenameFromPath(const string& strPath, bool Convert2Upper = true);
+	string GetPathFromFilename(const string& strFilename, bool Convert2Upper = true);
 	bool DoesFileExist(const char* filename);
 	string SortFiles(const string& infiles);
 	index_t NumberOfFiles(const string& infiles);

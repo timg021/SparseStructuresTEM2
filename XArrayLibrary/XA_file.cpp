@@ -18,6 +18,7 @@
 #include "stdafx.h"
 
 #include <algorithm>
+#include <locale>
 
 #include "XA_file.h"
 
@@ -50,53 +51,65 @@
 //
 /////////////////////////////////////////////////////////////////////////////
 
+xar::string str_toupper(xar::string s) 
+{
+	std::transform(s.begin(), s.end(), s.begin(),
+		[](unsigned char c) { return std::toupper(c); }
+	);
+	return s;
+}
 
-xar::string xar::GetFileExtension(const string& filename)
+
+xar::string xar::GetFileExtension(const string& filename, bool Convert2Upper)
 // returns ".EXT"
 {
 	string strTemp = GetFilenameFromPath(filename);
 	index_t i = filename.rfind('.');
 	if (i != string::npos) strTemp = filename.substr(i);
 	else return string("");
-	vector<char> vTemp(strTemp.size() + 1);
-	strcpy(&vTemp[0], strTemp.c_str());
-	_strupr(&vTemp[0]);	
-	return string(&vTemp[0]);
+	if (Convert2Upper) strTemp = str_toupper(strTemp);
+	return strTemp;
 }
 
 
-xar::string xar::GetFilenameFromPath(const string& strPath)
+xar::string xar::GetFilenameFromPath(const string& strPath, bool Convert2Upper)
 {
 	index_t i = strPath.rfind('\\');
+	if (i == string::npos)
+	{
+		i = strPath.rfind('/');
+		if (i == string::npos) return strPath; // no path present
+	}
 	if (i == string::npos) return strPath; // no path present
 	if (i == strPath.size() - 1) return string(""); // no filename present
 	string strTemp = strPath.substr(i + 1);
-	vector<char> vTemp(strTemp.size() + 1);
-	strcpy(&vTemp[0], strTemp.c_str());
-	_strupr(&vTemp[0]);	
-	return string(&vTemp[0]);
+	if (Convert2Upper) strTemp = str_toupper(strTemp);
+	return strTemp;
 }
 
 
-xar::string xar::GetPathFromFilename(const string& strFilename)
+xar::string xar::GetPathFromFilename(const string& strFilename, bool Convert2Upper)
 // returns "path\"
 {
 	index_t i = strFilename.rfind('\\');
-	if (i == string::npos) return string(""); // no path present
+	if (i == string::npos)
+	{
+		i = strFilename.rfind('/');
+		if (i == string::npos) return string(""); // no path present
+	}
 	if (i == strFilename.size() - 1) return strFilename; // no filename present
 	string strTemp = strFilename.substr(0, i + 1);
-	vector<char> vTemp(strTemp.size() + 1);
-	strcpy(&vTemp[0], strTemp.c_str());
-	_strupr(&vTemp[0]);	
-	return string(&vTemp[0]);
+	if (Convert2Upper) strTemp = str_toupper(strTemp);
+	return strTemp;
 }
 
 
 bool xar::DoesFileExist(const char* filename)
 {
-	int fh = _open(filename, _O_RDONLY);
-	if (fh==-1) return false;
-	else { _close(fh); return true; }
+	return std::filesystem::exists(filename);
+	//int fh = _open(filename, _O_RDONLY);
+	//if (fh==-1) return false;
+	//else { _close(fh); return true; }
 }
 
 
@@ -106,7 +119,7 @@ xar::string xar::SortFiles(const string& infiles)
 // returns alphabetically sorted infiles
 {
 	index_t i, i0, i1;
-	string infilesnames(GetFilenameFromPath(infiles));	
+	string infilesnames(GetFilenameFromPath(infiles, false));	
 	list<string> listInputFiles;
 
 	if (infilesnames.size() <= 0) return infiles;
@@ -123,7 +136,7 @@ xar::string xar::SortFiles(const string& infiles)
 
 	listInputFiles.sort();
 
-	string result = GetPathFromFilename(infiles);
+	string result = GetPathFromFilename(infiles, false);
 	list<string>::iterator iter = listInputFiles.begin();
 	while (iter != listInputFiles.end())
 	{
@@ -168,7 +181,7 @@ index_t xar::IOFileLists(const string& infiles, const string& outfile, list<stri
 {
 	index_t i, i0, i1, j, nfiles;
 	int iProblem1(0), iProblem2(0);
-	string infilesnames(GetFilenameFromPath(infiles));	
+	string infilesnames(GetFilenameFromPath(infiles, false));	
 	string csTemp, csOutPath, csOutSuffix, csOutPrefix;
 
 	listInputFiles.clear();
@@ -176,10 +189,10 @@ index_t xar::IOFileLists(const string& infiles, const string& outfile, list<stri
 
 	if (infilesnames.size() <= 0) return 0;
 
-	csOutPath = GetPathFromFilename(outfile);
+	csOutPath = GetPathFromFilename(outfile, false);
 	if (csOutPath.empty())
-		csOutPath = GetPathFromFilename(infiles);
-	csTemp = GetFilenameFromPath(outfile);
+		csOutPath = GetPathFromFilename(infiles, false);
+	csTemp = GetFilenameFromPath(outfile, false);
 	j = csTemp.rfind('.');
 	if (j == string::npos) j = csTemp.size();
 	csOutPrefix = csTemp.substr(0, j); // "NAME"
@@ -254,7 +267,7 @@ index_t xar::IOFileSet(const string& infiles, const string& outbase, vector<inde
 {
 	index_t i, i0, i1, j, nfiles;
 	int iProblem2(0);
-	string infilesnames(GetFilenameFromPath(infiles));	
+	string infilesnames(GetFilenameFromPath(infiles, false));	
 	string csTemp, csOutPath, csOutSuffix, csOutPrefix;
 
 	listInputFiles.clear();
@@ -262,10 +275,10 @@ index_t xar::IOFileSet(const string& infiles, const string& outbase, vector<inde
 
     if (infilesnames.size() <= 0) return 0;
 
-	csOutPath = GetPathFromFilename(outbase);
+	csOutPath = GetPathFromFilename(outbase, false);
 	if (csOutPath.empty())
-		csOutPath = GetPathFromFilename(infiles);
-	csTemp = GetFilenameFromPath(outbase);
+		csOutPath = GetPathFromFilename(infiles, false);
+	csTemp = GetFilenameFromPath(outbase, false);
 	j = csTemp.rfind('.');
 	csOutPrefix = csTemp.substr(0, j); // "NAME"
 	if (j == string::npos) 
@@ -338,8 +351,8 @@ index_t xar::IOFileString2List(const string& infiles, list<string>& listInputFil
 {
 	index_t i, i0, i1, nfiles;
 	int iProblem1(0), iProblem2(0);
-	string infilesnames(GetFilenameFromPath(infiles));	
-	string csInPath(GetPathFromFilename(infiles));
+	string infilesnames(GetFilenameFromPath(infiles, false));	
+	string csInPath(GetPathFromFilename(infiles, false));
 	string csTemp;
 
 	if (infilesnames.size() <= 0) return 0;
@@ -532,6 +545,7 @@ void xar::ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<ve
 // vvdefocus - output vector of vectors of pairs (z", d) each containing a rotation angle around Z" axis (illumination axis) and a defocus distance at the angle triplet (z, y', z")
 // any number of comment lines (starting with //) can be present inside the file, and will be ignored by this function
 // !!!NOTE that this program changes the signs of all angles read from the input file in order to account for the fact that the input file is expected to contain
+// !!!NOTE that the defocus distances are assumed to be measured from the centre of a molecule or nanoparticle, which should generally coincide with the centre of rotation
 // the rotation angles for the coordinate system (around the immobile sample/structure), while we will be rotating the sample/structure instead of the coordinate system
 {
 	char cline[2049];
@@ -541,30 +555,38 @@ void xar::ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<ve
 	vector<size_t> vwhite(0); // vector of white spaces separating different defocus distances (there should be exactly one white space before each defocus distance and no spaces at the end)
 
 	FILE* ff0 = fopen(difile.c_str(), "rt");
-	if (!ff0) throw std::exception((string("Error: cannot open input file ") + difile + string(".")).c_str());
+	if (!ff0) throw std::runtime_error((string("Error: cannot open input file ") + difile + string(".")).c_str());
 	//fgets(cline, 1024, ff0); // 1st line - comment
 
 	Pair pair;
 	v2angles.resize(0);
 	vvdefocus.resize(0);
 	index_t nline(0);
+	std::locale locl;
 	while (fgets(cline, 2048, ff0) != NULL) // read lines, each line consisting of three rotation angles followed by one or more defocus distance
 	{
 		nline++;
 		if (cline[0] == '/' && cline[1] == '/') continue; // skip any comment lines
 		if (!isdigit(cline[0]) && cline[0] != '-' && cline[0] != '+' && cline[0] != '.') // non-commented lines should contain only numbers
-			throw std::exception((string("Error reading input file ") + difile + string(".")).c_str());
+		{
+			throw std::runtime_error((string("Bad first character in a line of input file ") + difile + string(".")).c_str());
+		}
 		strtok(cline, "\n");
+		strtok(cline, "\r");
 		vwhite.resize(1); vwhite[0] = 0;
-		for (size_t i = 1; i < strlen(cline); i++) if (isspace(cline[i])) vwhite.push_back(i); // count the number of different pairs of z" angles and defocus distances in the input parameter file
-		if (vwhite.size() % 2) throw std::exception((string("Error reading input file (odd number of entries in a row) ") + difile + string(".")).c_str());
+		for (size_t i = 1; i < strlen(cline); i++) if (std::isspace(cline[i], locl)) vwhite.push_back(i); // count the number of different pairs of z" angles and defocus distances in the input parameter file
+		if (vwhite.size() % 2)
+		{
+			printf("\nline no. = %zd, number of white spaces + 1 = %zd", nline, vwhite.size());
+			throw std::runtime_error((string("Error reading input file (odd number of entries in a row) ") + difile + string(".")).c_str());
+		}
 		vwhite.push_back(strlen(cline)); // add one more entry corresponding to the end of the parameter string
 		int ndefocus = int(vwhite.size() - 3); 
 		if (ndefocus < 1) break; // assume that this is the end of file
 		if ((ndefocus % 2) != 0 ) // this number should be >0 and even, as it is supposed to contain pairs of values (z", d)
 		{
 			fclose(ff0); // close input file
-			throw std::exception((string("Error reading input file ") + difile + string(".")).c_str());
+			throw std::runtime_error((string("Incorrect number of entries in a line of input file ") + difile + string(".")).c_str());
 		}
 		else ndefocus /= 2; // number of detected defocus distances
 		vdefocus.resize(ndefocus); // vector of pairs (z", d) of z" angles and defocus distances (double precision numbers)
@@ -577,9 +599,9 @@ void xar::ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<ve
 			dtemp = atof(buffer);
 			j ? pair.b = -dtemp : pair.a = -dtemp; // !!! we change angle signs here, as we will use these to rotate the sample rather than the coordinate system
 		}
-		if (bVerboseOutput) printf("Z angle = %g, Y' angle = %g (degrees)", pair.a, pair.b);
+		if (bVerboseOutput) printf("Z angle = %g, Y' angle = %g (degrees)", -pair.a, -pair.b);
 		v2angles.push_back(pair);
-		if (bVerboseOutput) printf("\nInput defocus plane positions (%d in total): ", ndefocus);
+		if (bVerboseOutput) printf("\nDefocus distances from the centre of rotation (%d in total): ", ndefocus);
 		for (size_t j = 0; j < ndefocus * 2; j++)
 		{
 			for (size_t i = vwhite[j + 2]; i < vwhite[j + 3]; i++)
@@ -587,11 +609,13 @@ void xar::ReadDefocusParamsFile(string difile, vector<Pair>& v2angles, vector<ve
 			buffer[vwhite[j + 3] - vwhite[j + 2]] = '\0'; // string terminator
 			dtemp = atof(buffer);
 			(j % 2) ? (vdefocus[j / 2]).b = dtemp : (vdefocus[j / 2]).a = -dtemp; // odd entries are MINUS Z" angles, even entries are defocus distances
-			if (j %2 && bVerboseOutput) printf("Z'' angle = %g (degrees), defocus = %g (A); ", (vdefocus[j / 2]).a, (vdefocus[j / 2]).b);
+			if (j %2 && bVerboseOutput) printf("Z'' angle = %g (degrees), defocus = %g (A); ", -(vdefocus[j / 2]).a, (vdefocus[j / 2]).b);
 		}
 		vvdefocus.push_back(vdefocus);
 	}
 	if (bVerboseOutput) printf("\n%zd rotational positions in total in the input file.", vvdefocus.size());
+
+	if (vvdefocus.size() == 0) throw std::runtime_error((string("Error: defocus parameter file ") + difile + string(" has zero valid entries.")).c_str());
 
 	fclose(ff0); // close input file
 }
@@ -611,6 +635,7 @@ void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vec
 //			and we transform them on output into: vvdefocus[n][0].b = (Z1 + Z2) / 2, vastigm[n].a = (Z1 - Z2) / 2, vastigm[n].b = phi_A
 // any number of comment lines (starting with //) can be present inside the file, and will be ignored by this function
 // !!!NOTE that this program changes the signs of all angles and XY shifts read from the input file in order to account for the fact that the input file is expected to contain
+// !!!NOTE that the defocus distances are assumed to be measured from the centre of a molecule or nanoparticle, which should generally coincide with the centre of rotation
 // the rotation angles for the coordinate system (around the immobile sample/structure), while we will be rotating the sample/structure instead of the coordinate system
 {
 	char cline[2049];
@@ -619,7 +644,7 @@ void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vec
 	vector<Pair> vdefocus(1); // vector of defocus distances at a given rotation angle
 
 	FILE* ff0 = fopen(difile.c_str(), "rt");
-	if (!ff0) throw std::exception((string("Error: cannot open input file ") + difile + string(".")).c_str());
+	if (!ff0) throw std::runtime_error((string("Error: cannot open input file ") + difile + string(".")).c_str());
 	//fgets(cline, 1024, ff0); // 1st line - comment
 
 	Pair pair0, pair, pair1;
@@ -627,35 +652,33 @@ void xar::ReadRelionDefocusParamsFile(string difile, vector<Pair>& v2angles, vec
 	vvdefocus.resize(0);
 	v2shifts.resize(0);
 	vastigm.resize(0);
-	int nline(-1), nlineTemp;
+	int nlineTemp;
 	while (fgets(cline, 2048, ff0) != NULL) // read lines, each line consisting of three rotation angles followed by one or more defocus distance
 	{
-		nline++;
 		if (cline[0] == '/' && cline[1] == '/') continue; // skip any comment lines
-		if (!isdigit(cline[0]) && cline[0] != '-' && cline[0] != '+' && cline[0] != '.') // non-commented lines should contain only numbers
-			throw std::exception((string("Error reading input file ") + difile + string(".")).c_str());
+		if (!isdigit(cline[0]) && cline[0] != '-' && cline[0] != '+' && cline[0] != '.' && cline[0] != '\n') // non-commented lines should contain only numbers
+			throw std::runtime_error((string("Error reading input file ") + difile + string(".")).c_str());
 		strtok(cline, "\n");
 		if (sscanf(cline, "%d %s %lg %lg %lg %lg %lg %lg %lg %lg", &nlineTemp, buffer, &shiftx, &shifty, &df1, &df2, &phiA, &rot, &tilt, &psi) != 10)
 			break; // assume that this is the end of file
-		//if (nlineTemp != nline) std::exception((string("Error reading input file ") + difile + string(" (incorrect particle number).")).c_str());
 
 		pair.a = -rot; pair.b = -tilt;
 		v2angles.push_back(pair);
-		vdefocus[0].a = -psi; vdefocus[0].b = 0.5 * (df1 + df2);
+		vdefocus[0].a = -psi; vdefocus[0].b = -0.5 * (df1 + df2);
 		vvdefocus.push_back(vdefocus);
-		pair0.a = 0.5 * (df1 - df2);
+		pair0.a = -0.5 * (df1 - df2);
 		pair0.b = phiA;
 		vastigm.push_back(pair0);
 		pair1.a = -shiftx; pair1.b = -shifty;
 		v2shifts.push_back(pair1);
 
 		if (bVerboseOutput) printf("\nZ_angle = %g Y'_angle = %g ", -pair.a, -pair.b);
-		if (bVerboseOutput) printf("Z''_angle = %g (degrees), (DefocX+DefocY)/2 = %g (A), ", -vdefocus[0].a, vdefocus[0].b);
-		if (bVerboseOutput) printf("(DefocX-DefocY)/2 = %g (A), phiA = %g (deg), X-shift = %g (A), Y-shift = %g (A)", pair0.a, pair0.b, -pair1.a, -pair1.b);
+		if (bVerboseOutput) printf("Z''_angle = %g (degrees), (DefocX+DefocY)/2 = %g (A), ", -vdefocus[0].a, -vdefocus[0].b);
+		if (bVerboseOutput) printf("(DefocX-DefocY)/2 = %g (A), phiA = %g (deg), X-shift = %g (A), Y-shift = %g (A)", -pair0.a, pair0.b, -pair1.a, -pair1.b);
 	}
 	
-	if (nline == 0)
-		throw std::exception((string("Error reading input file ") + difile + string(" (number of entries in a line is not equal to 10).")).c_str());
+	if (vvdefocus.size() == 0)
+		throw std::runtime_error((string("Error reading input file ") + difile + string(" (number of entries in a line is not equal to 10?).")).c_str());
 	else
 		printf("\n%zd rotational positions read in total from the input file.", vvdefocus.size());
 

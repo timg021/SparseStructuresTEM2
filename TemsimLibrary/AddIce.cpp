@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include "AddIce.h"
 #include "slicelib.hpp"
 
@@ -217,7 +218,7 @@ void insertcoord(std::vector<double>& ctest, std::vector<std::vector<double> >& 
 	//  check that there is enough memory left
 	n = (int)coord.size();
 	if (ncoord >= n) {
-		throw std::exception("Error: too big a number of new coordinates in insertcoord().");
+		throw std::runtime_error("Error: too big a number of new coordinates in insertcoord().");
 		//cout << "ncoord = " << ncoord << " too big in insertcoord(), exit...." << endl;
 		//exit(0);
 	}
@@ -296,7 +297,7 @@ void sortByZd(float* x, float* y, float* z, float* occ,
 
 	/*  Test sort routine -- DELETE this after awhile  */
 	for (i = 1; i < natom; i++) {
-		if (z[i - 1] > z[i]) throw std::exception("Error: bad sort in sortByZd().");
+		if (z[i - 1] > z[i]) throw std::runtime_error("Error: bad sort in sortByZd().");
 	}
 
 }  /* end sortByZ() */
@@ -454,6 +455,7 @@ int AddIce(float iceThick, float ctblength, int natom, int** pZnum, float** px, 
 		if (z[i] < zmin) zmin = z[i];
 		if (z[i] > zmax) zmax = z[i];
 	}
+	if (zmax > cz) throw std::runtime_error("Error: z-extent of the molecule is larger than the thickness of the ice layer.");
 
 	//  fill the whole vol. with ice excluding the PDB aotm positions
 	//    by adding H2O to existing PDB coord.

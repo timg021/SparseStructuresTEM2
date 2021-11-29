@@ -86,8 +86,8 @@ public:
 	// Inverse FFT
 	void InverseFFT() { fftw_execute(bplan); }
 	// Print internal arrays
-	void PrintRealArray(const char* message);
-	void PrintComplexArray(const char* message);
+	//void PrintRealArray(const char* message);
+	//void PrintComplexArray(const char* message);
 	// Inverse minus-Laplacian
 	void InverseMLaplacian(xar::XArray3D<double>& xa3, double alpha = 0.0);
 	// Convolution with a Gaussian

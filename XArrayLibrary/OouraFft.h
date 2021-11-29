@@ -105,9 +105,9 @@ private:
 }
 
 //! Returns the xar::_eValueType corresponding to T=float
-inline xar::_eValueType xar::OouraFft<float>::GetValuetype() { return eXAFloat; }
+template<> xar::_eValueType xar::OouraFft<float>::GetValuetype() { return eXAFloat; }
 //! Returns the xar::_eValueType corresponding to T=double
-inline xar::_eValueType xar::OouraFft<double>::GetValuetype() { return eXADouble; }
+template<> xar::_eValueType xar::OouraFft<double>::GetValuetype() { return eXADouble; }
 
 
 
@@ -460,9 +460,9 @@ template <class T> void xar::OouraFft<T>::PrepareWorkArea2D(_eType eType, _eDir 
 	{
 	case eTypeComplexFft:	// Complex FFT
 		// ulWorkDim = max(n1, n2)
-		ulWorkDim = __max(ulWidth, ulHeight);
+		ulWorkDim = max<size_t>(ulWidth, ulHeight);
 		// ulTrigDim >= max(n1/2, n2/2)
-		ulTrigDim = __max(ulWidth / 2, ulHeight / 2);
+		ulTrigDim = max<size_t>(ulWidth / 2, ulHeight / 2);
 		// Calculate the required bit reversal work area length
 		ulBitRevLen = static_cast<size_t>(ceil(2.0 + sqrt(static_cast<double>(ulWorkDim))));
 		// ulWorkLen = 8 * n1
@@ -470,9 +470,9 @@ template <class T> void xar::OouraFft<T>::PrepareWorkArea2D(_eType eType, _eDir 
 		break;
 	case eTypeRealFft:		// Real FFT
 		// ulWorkDim = max(n1, n2/2)
-		ulWorkDim = __max(ulHeight, ulWidth / 2);
+		ulWorkDim = max<size_t>(ulHeight, ulWidth / 2);
 		// ulTrigDim >= max(n1/2, n2/4) + n2/4
-		ulTrigDim = __max(ulHeight / 2, ulWidth / 4) + ulWidth / 4;
+		ulTrigDim = max<size_t>(ulHeight / 2, ulWidth / 4) + ulWidth / 4;
 		// Calculate the required bit reversal work area length
 		ulBitRevLen = static_cast<size_t>(ceil(2.0 + sqrt(static_cast<double>(ulWorkDim))));
 		// ulWorkLen = 8 * n1
@@ -485,9 +485,9 @@ template <class T> void xar::OouraFft<T>::PrepareWorkArea2D(_eType eType, _eDir 
 			ulInnerDim *= 2;
 		}
 		// ulWorkDim = max(n1/2, n2/2)
-		ulWorkDim = __max(ulWidth / 2, ulInnerDim / 2);
+		ulWorkDim = max<size_t>(ulWidth / 2, ulInnerDim / 2);
 		// ulTrigDim >= max(3*n1/2, 3*n2/2)
-		ulTrigDim = __max(3 * ulWidth / 2, 3 * ulInnerDim / 4);
+		ulTrigDim = max<size_t>(3 * ulWidth / 2, 3 * ulInnerDim / 4);
 		// Calculate the required bit reversal work area length
 		ulBitRevLen = static_cast<size_t>(ceil(2.0 + sqrt(static_cast<double>(ulWorkDim))));
 		// ulWorkLen = 4 * n1
@@ -500,9 +500,9 @@ template <class T> void xar::OouraFft<T>::PrepareWorkArea2D(_eType eType, _eDir 
 			ulInnerDim *= 2;
 		}
 		// ulWorkDim = max(n1/2, n2/2)
-		ulWorkDim = __max(ulWidth / 2, ulInnerDim / 2);
+		ulWorkDim = max<size_t>(ulWidth / 2, ulInnerDim / 2);
 		// ulTrigDim >= max(3*n1/2, 3*n2/2)
-		ulTrigDim = __max(3 * ulWidth / 2, 3 * ulInnerDim / 4);
+		ulTrigDim = max<size_t>(3 * ulWidth / 2, 3 * ulInnerDim / 4);
 		// Calculate the required bit reversal work area length
 		ulBitRevLen = static_cast<size_t>(ceil(2.0 + sqrt(static_cast<double>(ulWorkDim))));
 		// ulWorkLen = 4 * n1

@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 		string sInputParamFile("MsctKirkland.txt");
 		if (argc > 1) sInputParamFile = argv[1];
 		FILE* ff0 = fopen(sInputParamFile.c_str(), "rt");
-		if (!ff0) throw std::exception(string("Error: cannot open parameter file " + sInputParamFile + ".").c_str());
+		if (!ff0) throw std::runtime_error(string("Error: cannot open parameter file " + sInputParamFile + ".").c_str());
 		else printf("\nReading input parameter file %s ...", sInputParamFile.c_str());
 
 		char cline[1024], ctitle[1024], cparam[1024];
@@ -44,29 +44,29 @@ int main(int argc, char* argv[])
 		
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 2nd parameter: Output_files_shall_contain_intensity(0),_phase(1),_complex_amplitude(2)_or_3D_potential(3)
 		autoslictxt[27] = cline; // The numbering of these parameters is 'historic', it can be changed, but then the corresponding changes need to be applied in autosliccmd.cpp too.
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading output type from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output type from the input parameter file.");
 		int nOutputType = atoi(cparam);
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 3rd parameter: Output_TIFF/GRD/GRC_filename_template
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading output file template from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output file template from the input parameter file.");
 		string outfilename(cparam); // output filename stub
 		if ((GetFileExtension(outfilename) != string(".TIFF")) && (GetFileExtension(outfilename) != string(".TIF")) && (GetFileExtension(outfilename) != string(".GRD")) && (GetFileExtension(outfilename) != string(".GRC")))
-			throw std::exception("Error: output filename extension must be TIF, GRD or GRC.");
+			throw std::runtime_error("Error: output filename extension must be TIF, GRD or GRC.");
 		if ((nOutputType == 0 || nOutputType == 1 || nOutputType == 3) && !(GetFileExtension(outfilename) == string(".GRD") || GetFileExtension(outfilename) == string(".TIF") || GetFileExtension(outfilename) == string(".TIFF")))
-			throw std::exception("Output type (parameter 2) is inconsistent with output filename extension in the input parameter file.");
+			throw std::runtime_error("Output type (parameter 2) is inconsistent with output filename extension in the input parameter file.");
 		if (nOutputType == 2 && (GetFileExtension(outfilename) != string(".GRC")))
-			throw std::exception("Output type (parameter 2) is inconsistent with output filename extension in the input parameter file.");
+			throw std::runtime_error("Output type (parameter 2) is inconsistent with output filename extension in the input parameter file.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 4th paramter: Use_multislice(0),_projection(1),_or_1st_Born(2)_approximation
 		autoslictxt[25] = cline;
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading calculation mode (parameter 4) from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading calculation mode (parameter 4) from the input parameter file.");
 		int nCalculationMode = atoi(cparam);
 		if ((nCalculationMode != 0) && (nCalculationMode != 1) && (nCalculationMode != 2))
-			throw std::exception("Unknown calculation mode (parameter 4) in the input parameter file.");
+			throw std::runtime_error("Unknown calculation mode (parameter 4) in the input parameter file.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 5th parameter: Incident__electron_beam_energy_in_keV
 		autoslictxt[10] = cline;
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading electron beam energy from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading electron beam energy from the input parameter file.");
 		double ev = atof(cparam) * 1000; // accelerating voltage in eV
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 6th parameter: Wavefunction_size_in_pixels,_Nx,Ny
 		autoslictxt[11] = cline;
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
 		autoslictxt[5] = cline;
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 10th paramter: Include_thermal_vibrations(1)_or_not(0)
 		autoslictxt[17] = cline;
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading thermal vibration option from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading thermal vibration option from the input parameter file.");
 		int iThermalVibr = atoi(cparam);
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 11th parameter: ____Temperature_in_degrees_K
@@ -87,29 +87,29 @@ int main(int argc, char* argv[])
 		double dTemperature(-1.0);
 		if (iThermalVibr != 0)
 		{
-			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading temperature from the input parameter file.");
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading temperature from the input parameter file.");
 			dTemperature = atof(cparam);
-			if (dTemperature < 0) throw std::exception("Temperature in degrees K cannot be negative.");
+			if (dTemperature < 0) throw std::runtime_error("Temperature in degrees K cannot be negative.");
 		}
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 12th parameter: ____Number_of_configurations_to_average_over
 		autoslictxt[19] = cline;
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading the number of configurations parameter from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the number of configurations parameter from the input parameter file.");
 		int iNumConfig = atoi(cparam);
-		if (iNumConfig < 0) throw std::exception("Number of configurations cannot be negative.");
+		if (iNumConfig < 0) throw std::runtime_error("Number of configurations cannot be negative.");
 		if (iThermalVibr != 0 && iNumConfig > 1 && !(nOutputType == 0 || nOutputType == 3))
-			throw std::exception("Output type can only be 0 (intensity) or 3 (3D potential) when the thermal vibrations option with multiple configurations is enabled in the input parameter file.");
+			throw std::runtime_error("Output type can only be 0 (intensity) or 3 (3D potential) when the thermal vibrations option with multiple configurations is enabled in the input parameter file.");
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13th parameter: Ice_layer_thickness_in_Angstroms
 		autoslictxt[29] = cline;
 		if (iThermalVibr != 0 && dTemperature > 273.15)
 		{
-			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading ice layer thickness from the input parameter file.");
-			if (atof(cparam) > 0) throw std::exception("Temperature cannot be higher than 273.15K in the presence of an ice layer.");
+			if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading ice layer thickness from the input parameter file.");
+			if (atof(cparam) > 0) throw std::runtime_error("Temperature cannot be higher than 273.15K in the presence of an ice layer.");
 		}
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14th parameter: Text_file_with_output_rotation_angles_in_degrees_and_defocus_distances_in_Angstroms
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading the name of the file with defocus distances and rotational positions from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the name of the file with defocus distances and rotational positions from the input parameter file.");
 		string DefocFile = string(cparam);
 		vector<Pair> v2angles;
 		vector<vector <Pair> > vvdefocus;
@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 		vector<Pair> v2shifts;
 		if (GetFileExtension(DefocFile) == string(".TXT"))
 		{
-			ReadDefocusParamsFile(DefocFile, v2angles, vvdefocus, false);
+			ReadDefocusParamsFile(DefocFile, v2angles, vvdefocus, true);
 			vastigm.resize(v2angles.size(), xar::Pair{ 0.0, 0.0 });
 			v2shifts.resize(v2angles.size(), xar::Pair{ 0.0, 0.0 });
 		}
@@ -126,20 +126,11 @@ int main(int argc, char* argv[])
 			{
 				//!!! note that the ReadRelionDefocusParameters currently can have only one defocus distance per illumination angle
 				ReadRelionDefocusParamsFile(DefocFile, v2angles, vvdefocus, vastigm, v2shifts, true);
-				//!!! in the case of Relion defocus file, we presume that the defocus distances are given from the centre of the molecule,
-				// and we adjust these defocus distances so that they would be measured from the "exit plane", as in the case of .txt defocus files
-				char chaa[1024], cinfile[1024];
-				if (sscanf(autoslictxt[0].data(), "%s %s", chaa, cinfile) != 2)
-					throw std::exception("Error reading line 1 of input parameter array.");
-				pdbdata pd;
-				pdbdata_init(&pd);
-				float pxlen, pylen, pzlen;
-				if (data_from_KirklandXYZfile(cinfile, &pd, &pxlen, &pylen, &pzlen) == -1) // read Kirkland XYZ file
-					throw std::exception("Error: reading XYZ file given in parameter 1 of the input parameter file.");
-				pzlen *= 0.5;
-				for (int i = 0; i < vvdefocus.size(); i++) vvdefocus[i][0].b -= pzlen;
 			}
-			else throw std::exception("Error: unrecognised filename extension in parameter 14 of the input parameter file.");
+			else throw std::runtime_error("Error: unrecognised filename extension in parameter 14 of the input parameter file.");
+		//!!!NOTE that we assume that the defocus distances in the orientaion parameter file are given from the centre of the molecule,
+		// and we adjust these defocus distances accordingly in the free-space propagation part of autosliccmd.cpp, where we subtract half of the z-thickness of the structure 
+		//(which is already taken into account in the multislice algorithm) from each defocus distance given in the orientation file
 
 		index_t nangles = v2angles.size(); // number of different illumination directions 
 		vector<index_t> vndefocus(nangles); // vector of numbers of rotations around the optic axis = number of defocus planes at different rotation angles
@@ -148,13 +139,13 @@ int main(int argc, char* argv[])
 		{
 			for (index_t i = 0; i < nangles; i++)
 				if (vndefocus[i] != 1)
-					throw std::exception("Error: only one defocus distance per row is allowed in the case of output complex amplitudes or 3D potential calculations.");
+					throw std::runtime_error("Error: only one defocus distance per row is allowed in the case of output complex amplitudes or 3D potential calculations.");
 		}
 		vector<string> voutfilenamesTot;
 		FileNames2(vndefocus, outfilename, voutfilenamesTot); // create "2D array" of output filenames
 
 		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 15th parameter: Number_of_worker_threads_to_launch_in_CT_simulation_mode
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::exception("Error reading the number of worker threads from the input parameter file.");
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading the number of worker threads from the input parameter file.");
 		unsigned int ncores = (unsigned int)atoi(cparam) + 1; // number of threads to use (expected to be equal to the number of cores) 
 
 		fclose(ff0); // close input parameter file
@@ -196,6 +187,9 @@ int main(int argc, char* argv[])
 		index_t ndefcurrent(0);
 		for (size_t i = 0; i < nangles; i++)
 		{
+			// start the execution timer
+			std::chrono::system_clock::time_point start_time_angle = std::chrono::system_clock::now();
+
 			Pair angle = v2angles[i];
 			printf("\nIllumination angle: z = %g, y' = %g (degrees)", angle.a, angle.b);
 			sprintf(bufangle, "%f %f", angle.a * PI180, angle.b * PI180);
@@ -221,11 +215,12 @@ int main(int argc, char* argv[])
 			while (thread_counter.GetCount() >= 0 && (!thread_counter.GetUpdated() || thread_counter.GetCount() >= (int)ncores))
 				std::this_thread::sleep_for(std::chrono::milliseconds(10)); // we allow ncores of threads to be launched
 			if (thread_counter.GetCount() < 0) // meaning that a thread has requested the whole program to terminate
-				throw std::exception("A thread has requested the whole program to terminate.");
+				throw std::runtime_error("A thread has requested the whole program to terminate.");
 #else
 			autosliccmd(autoslictxt, vdefocus, vstrfileout); // single-threaded execution mode
 #endif // TEG_MULTITHREADED
-
+			std::chrono::system_clock::time_point end_time_angle = std::chrono::system_clock::now();
+			printf("\nExecution time for this illumination angle = %I64d ms.", std::chrono::duration_cast<std::chrono::milliseconds>(end_time_angle - start_time_angle).count());
 		}
 
 #ifdef TEG_MULTITHREADED
@@ -236,7 +231,7 @@ int main(int argc, char* argv[])
 		printf("\nMain program finished. Execution time = %I64d s.", std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count());
 
 	}
-	catch (std::exception& E)
+	catch (std::runtime_error& E)
 	{
 		printf("\n!!!Exception: %s\n", E.what());
 	}

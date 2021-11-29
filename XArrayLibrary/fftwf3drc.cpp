@@ -69,7 +69,7 @@ void Fftwf3drc::SetComplexXArray3D(xar::XArray3D<xar::fcomplex> aaa)
 			}
 }
 
-
+/*
 void Fftwf3drc::PrintRealArray(const char* message)
 {
 	float* pin = GetReal();
@@ -95,4 +95,4 @@ void Fftwf3drc::PrintComplexArray(const char* message)
 				m++; 
 			}
 }
-
+*/

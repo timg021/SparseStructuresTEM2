@@ -520,7 +520,7 @@ namespace xar
 		\param		b	Real scalar value representing imaginary part or phase of a complex object to be constructed
 		\param		C	Complex XArray2D object constructed by this function
 		\param		bMakePolar if \b true, then C = A * exp(ib) is constructed, else C = A + ib is constructed
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called from 
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called from 
 					inside this function
 		\return		\a None
 		\par		Description:
@@ -559,7 +559,7 @@ C = MakeComplex(A, 0.0f, C, false);
 		\param		B	Real XArray2D object representing imaginary part or phase of a complex object to be constructed
 		\param		C	Complex XArray2D object constructed by this function
 		\param		bMakePolar if \b true, then C = a * exp(iB) is constructed, else C = a + iB is constructed
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called from 
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called from 
 					inside this function
 		\return		\a None
 		\par		Description:
@@ -600,7 +600,7 @@ C = MakeComplex(1.0f, B, false);
 		\param		C	Complex XArray2D object constructed by this function
 		\param		bMakePolar if \b true, then C = A * exp(iB) is constructed, else C = A + iB is constructed
 		\exception	std::invalid_argument is thrown if A and B have differented sizes or heads
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions called 
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions called 
 					from inside this function
 		\return		\a None
 		\par		Description:
@@ -638,7 +638,7 @@ C = MakeComplex(A, B, false);
 		\brief		Calculates the real part of a complex XArray2D object
 		\param		C	Input complex XArray2D object
 		\param		A	Output real XArray2D object to be made equal to the real part of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -675,7 +675,7 @@ A = Re(C);
 		\brief		Calculates the imaginary part of a complex XArray2D object
 		\param		C	Input complex XArray2D object
 		\param		A	Output real XArray2D object to be made equal to the imaginary part of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -712,7 +712,7 @@ A = Im(C);
 		\brief		Calculates the modulus of a complex XArray2D object
 		\param		C	Input complex XArray2D object
 		\param		A	Output real XArray2D object to be made equal to the modulus of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -750,7 +750,7 @@ A = Abs(C);
 		\brief		Calculates the argument of a complex XArray2D object
 		\param		C	Input complex XArray2D object
 		\param		A	Output real XArray2D object to be made equal to the argument of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -787,7 +787,7 @@ A = Arg(C);
 		\brief		Calculates the square modulus of a complex XArray2D object
 		\param		C	Input complex XArray2D object
 		\param		A	Output real XArray2D object to be made equal to the square modulus of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:
@@ -825,7 +825,7 @@ A = Abs2(C);
 		\brief		Calculates the 1D-continuous phase of a complex XArray2D object
 		\param		C	Input complex XArray2D object
 		\param		A	Output real XArray2D object to be made equal to the phase of C
-		\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+		\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 					called from inside this function
 		\return		\a None
 		\par		Description:

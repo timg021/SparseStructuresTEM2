@@ -28,7 +28,7 @@
 //
 #include "XArray1D.h"
 #include "XA_head2.h"
-#include "crtdbg.h"
+//#include "crtdbg.h"
 #include "OouraFft.h"
 
 namespace xar
@@ -80,11 +80,18 @@ namespace xar
 	// Constructors
 	public:
 		//! Constructor
-		XArray2DFFT(XArray2D<std::complex<T> >& rXArray2D) : m_rXArray2D(rXArray2D) { GetValuetype(); }
+		XArray2DFFT(XArray2D<std::complex<T> >& rXArray2D, bool bFFT = false) : m_rXArray2D(rXArray2D), m_bFFT(bFFT) 
+		{ 
+			GetValuetype(); 
+			double temp = log2(m_rXArray2D.GetDim1());
+			if (temp != int(temp)) throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T> constructor (m_dim1 is not an integer power of 2)");
+			temp = log2(m_rXArray2D.GetDim2());
+			if (temp != int(temp)) throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T> constructor (m_dim2 is not an integer power of 2)");
+		}
 	protected:
 		//! Copy constructor (declared protected to prohibit copying)
 		XArray2DFFT(const XArray2DFFT<T>& rCopy)
-			: m_rXArray2D(rCopy.m_rXArray2D) {}
+			: m_rXArray2D(rCopy.m_rXArray2D), m_bFFT(rCopy.m_bFFT) {}
 	public:
 		//! Destructor
 		~XArray2DFFT() {}
@@ -104,19 +111,24 @@ namespace xar
 		const XArray2D<std::complex<T> >& GetBaseObject() const { return m_rXArray2D; }
 		//! Returns a reference to the 'wrapped' XArray2D<complex<T> > object
 		XArray2D<std::complex<T> >& GetBaseObject() { return m_rXArray2D; }
+		//! Sets the internal m_bFFT flag indicating if the wrapped m_rXArray2D is in the FFT state
+		void SetFftFlag(bool bFFT) { m_bFFT = bFFT; }
+		//! Gets the internal m_bFFT flag indicating if the wrapped m_rXArray2D is in the FFT state
+		bool GetFftFlag() const { return m_bFFT; }
 
 	// Operations
 	public:
 		//! Reshuffles the 'wrapped' complex XArray2D<T> object
 		void Shuffle();
 		//! Performs direct or inverse FFT of the 'wrapped' complex XArray2D object
-		void FFT(bool bForward, bool bCheck = true);
+		void FFT(bool bForward, bool bShuffle = true);
 		//! Calculates 2D Kirchhoff integral
 		void Kirchhoff(double dblDistance, bool bCheckValidity = true);
 		//! Calculates 2D Fresnel integral
 		void Fresnel(double dblDistance, bool bCheckValidity = true, double q2max = -1.0, double C3 = 0.0, double C5 = 0.0);
 		//! Calculates 2D Fresnel integral with possible astigmatism
 		void FresnelA(double dblDistance, double a1, double a2, bool bCheckValidity = true, double q2max = -1.0, double C3 = 0.0, double C5 = 0.0);
+		void FresnelAold(double dblDistanceX, double dblDistanceY, bool bCheckValidity, double q2max, double C3, double C5);
 		//! Calculates 2D Fresnel integral for long propagation distances
 		void FresnelFar(double dblDistance, bool bCheckValidity = true);
 
@@ -125,6 +137,8 @@ namespace xar
 	// Member variables	
 		//! Reference to the 'wrapped' XArray2D<complex<T> > object that is being operated upon
 		XArray2D<std::complex<T> >& m_rXArray2D;
+		//! Determines if the wrapped array is already in the FFT form
+		bool m_bFFT;
 	};
 } // end of namespace xar
 
@@ -133,9 +147,9 @@ namespace xar
 //	TEMPLATE MEMBER DEFINITIONS
 //
 //! Returns the xar::_eValueType corresponding to T=float
-inline xar::_eValueType xar::XArray2DFFT<float>::GetValuetype() { return eXAFloat; }
+template<> xar::_eValueType xar::XArray2DFFT<float>::GetValuetype() { return eXAFloat; }
 //! Returns the xar::_eValueType corresponding to T=double
-inline xar::_eValueType xar::XArray2DFFT<double>::GetValuetype() { return eXADouble; }
+template<> xar::_eValueType xar::XArray2DFFT<double>::GetValuetype() { return eXADouble; }
 
 
 //! Assignment (declared protected to prohibit copying)
@@ -174,8 +188,8 @@ template <class T> void xar::XArray2DFFT<T>::Shuffle()
 /*!
 	\brief		Performs direct or inverse FFT of the 'wrapped' complex XArray2D object
 	\param		bForward	Determines if the direct FFT (true), or the inverse FFT (false) is performed
-	\param		bCheck	Determines if the array dimensions are checked to be integer powers of 2 (true)
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\param		bShuffle Determines if the array is shuffled before and after the FFT transform
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -189,7 +203,7 @@ InterfaceFFT2D.FFT(true); // perform direct FFT of the XArray2D object
 \endverbatim
 */	
 // NOTE!!!: new X-Y order !!!
-template <class T> void xar::XArray2DFFT<T>::FFT(bool bForward, bool bCheck)
+template <class T> void xar::XArray2DFFT<T>::FFT(bool bForward, bool bShuffle)
 {
 	OouraFft<T> fft;
 
@@ -204,11 +218,12 @@ template <class T> void xar::XArray2DFFT<T>::FFT(bool bForward, bool bCheck)
 		xhi = (0.5 - 1.0 / m_rXArray2D.GetDim2()) / GetXStep(m_rXArray2D);
 	}
 
-	Shuffle();
+	if (bShuffle) Shuffle();
 	fft.Complex2D((std::complex<T> *) &m_rXArray2D[0][0], 
 		m_rXArray2D.GetDim1(), m_rXArray2D.GetDim2(), 
 		bForward? OouraFft<T>::eDirFwd : OouraFft<T>::eDirInv);
-	Shuffle();
+	if (bShuffle) Shuffle();
+	else m_bFFT = !m_bFFT; // only change the internal m_bFFT flag if the wrapped array has been FFTed and not shuffled
 
 	if (!bForward) 
 	{
@@ -217,9 +232,8 @@ template <class T> void xar::XArray2DFFT<T>::FFT(bool bForward, bool bCheck)
 		T anxy = T(1.0) / nxy;
 		for (index_t k=0; k<nxy*2; k++) u[k] *= anxy;
 	}
-	
 
-	if (ph2)
+	if (ph2 && bShuffle)
 	{
 		IXAHWave2D* ph2a = CreateWavehead2D();
 		ph2a->SetData(wl, ylo, yhi, xlo, xhi);
@@ -227,44 +241,6 @@ template <class T> void xar::XArray2DFFT<T>::FFT(bool bForward, bool bCheck)
 	}
 }
 
-/*
-inline void xar::XArray2DFFT<double>::FFT(bool bForward, bool bCheck)
-{
-	OouraFft<double> fft;
-
-	double wl, ylo, yhi, xlo, xhi;
-	IXAHWave2D* ph2 = GetIXAHWave2D(m_rXArray2D);
-	if (ph2) //if the head implements IXAHWave2D
-	{
-		wl = ph2->GetWl();
-		ylo = -0.5 / GetYStep(m_rXArray2D);
-		yhi = (0.5 - 1.0 / m_rXArray2D.GetDim1()) / GetYStep(m_rXArray2D);
-		xlo = -0.5 / GetXStep(m_rXArray2D);
-		xhi = (0.5 - 1.0 / m_rXArray2D.GetDim2()) / GetXStep(m_rXArray2D);
-	}
-
-	Shuffle();
-	fft.Complex2D((std::complex<double> *) &m_rXArray2D[0][0], 
-		m_rXArray2D.GetDim1(), m_rXArray2D.GetDim2(), 
-		bForward? OouraFft<double>::eDirFwd : OouraFft<double>::eDirInv );
-	Shuffle();
-
-	if (!bForward) 
-	{
-		T* u = reinterpret_cast<double*>(&(m_rXArray2D.front()));
-		index_t nxy = m_rXArray2D.GetDim1() * m_rXArray2D.GetDim2();
-		double anxy = double(1.0) / nxy;
-		for (index_t k=0; k<nxy*2; k++) u[k] *= anxy;
-	}
-	
-	if (ph2)
-	{
-		IXAHWave2D* ph2a = CreateWavehead2D();
-		ph2a->SetData(wl, ylo, yhi, xlo, xhi);
-		m_rXArray2D.SetHeadPtr(ph2a);
-	}
-}
-*/
 //---------------------------------------------------------------------------
 //Function XArray2DFFT<T>::Kirchhoff
 //
@@ -276,7 +252,7 @@ inline void xar::XArray2DFFT<double>::FFT(bool bForward, bool bCheck)
 	\param		bCheckValidity	Determines the validity of the used implementation for given parameters
 	\exception	std::invalid_argument is thrown if any of the two dimensions of the wrapped object
 				is not an integer power of 2; or if the object does not have an associated Wavehead2D.
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -307,13 +283,6 @@ template <class T> void xar::XArray2DFFT<T>::Kirchhoff(double dblDistance, bool 
 
 	index_t nx = m_rXArray2D.GetDim1();
 	index_t ny = m_rXArray2D.GetDim2();
-
-	index_t i = 2;
-	while (i < nx) i *= 2;
-	if (i != nx) throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T>::Kirchhoff (m_dim1 is not a power of 2)");
-	index_t j = 2;
-	while (j < ny) j *= 2;
-	if (j != ny) throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T>::Kirchhoff (m_dim2 is not a power of 2)");
 
 	IXAHWave2D* ph2 = GetIXAHWave2D(m_rXArray2D);
 	if (!ph2)
@@ -360,9 +329,7 @@ template <class T> void xar::XArray2DFFT<T>::Kirchhoff(double dblDistance, bool 
 	OouraFft<T> fft;
 
 	T* u = reinterpret_cast<T*>(&(m_rXArray2D.front()));
-	fft.Complex2D((std::complex<T> *) u, m_rXArray2D.GetDim1(), 
-		m_rXArray2D.GetDim2(), OouraFft<T>::eDirFwd);
-
+	if (!m_bFFT) fft.Complex2D((std::complex<T> *) u, m_rXArray2D.GetDim1(), m_rXArray2D.GetDim2(), OouraFft<T>::eDirFwd);
 
 //********* Multiplying F[u] by the Kirchhoff_propagator
 
@@ -440,7 +407,7 @@ template <class T> void xar::XArray2DFFT<T>::Kirchhoff(double dblDistance, bool 
 	\param		C5 optional 5th-order spherical aberration (its dimensionality is the same as for dblDistance)
 	\exception	std::invalid_argument is thrown if any of the two dimensions of the wrapped object
 				is not an integer power of 2; or if the object does not have an associated Wavehead2D.
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -487,7 +454,7 @@ template <class T> void xar::XArray2DFFT<T>::Fresnel(double dblDistance, bool bC
 	\param		C5 optional 5th-order spherical aberration (its dimensionality is the same as for dblDistanceX and Y)
 	\exception	std::invalid_argument is thrown if any of the two dimensions of the wrapped object
 				is not an integer power of 2; or if the object does not have an associated Wavehead2D.
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -516,6 +483,248 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double
 	index_t nx = m_rXArray2D.GetDim2();
 	index_t ny = m_rXArray2D.GetDim1();
 
+	IXAHWave2D* ph2 = GetIXAHWave2D(m_rXArray2D);
+	if (!ph2)
+		throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T>::FresnelA (no Wavehead2D)");
+	ph2->Validate();
+
+	double wl = ph2->GetWl();
+	double ylo = ph2->GetYlo();
+	double yhi = ph2->GetYhi();
+	double yst = (yhi - ylo) / ny;
+	double xlo = ph2->GetXlo();
+	double xhi = ph2->GetXhi();
+	double xst = (xhi - xlo) / nx;
+
+	index_t nxd2 = nx / 2;
+	index_t nyd2 = ny / 2;
+	index_t nx2 = nx * 2;
+	index_t ny2 = ny * 2;
+	index_t nxy = nx * ny;
+	index_t nxy2 = nxy * 2;
+	double xap = std::abs(xhi - xlo);
+	double xap2 = (xhi - xlo) * (xhi - xlo);
+	double yap = std::abs(yhi - ylo);
+	double yap2 = (yhi - ylo) * (yhi - ylo);
+	double xst2 = xst * xst;
+	double yst2 = yst * yst;
+
+	//  Nyquist frequency (spectral radius) of U0 = srad*wl
+	double srad = sqrt(0.25 / xst2 + 0.25 / yst2);
+	if (srad * wl > 1.0)
+		throw std::runtime_error("runtime_error in XArray2DFFT<T>::FresnelA (evanescent waves present)");
+
+	//  Fresnel numbers NFx(y)=a(b)^2/wl/abs(dblDistance)=',fnumx,fnumy
+	double absdistanceX = fabs(dblDistance + Z1mZ2d2);
+	double absdistanceY = fabs(dblDistance - Z1mZ2d2);
+	double fnumx = xap2 / absdistanceX / wl;
+	double fnumy = yap2 / absdistanceY / wl;
+	if (bCheckValidity && (fnumx < 10 || fnumy < 10))
+		throw std::runtime_error("runtime_error in XArray2DFFT<T>::FresnelA (Fresnel number too low)");
+
+	//********* Fourier transforming initial amplitude u(i,j)
+
+	OouraFft<T> fft;
+
+	T* u = reinterpret_cast<T*>(&(m_rXArray2D.front()));
+	if (!m_bFFT) fft.Complex2D((std::complex<T> *) u, m_rXArray2D.GetDim1(), m_rXArray2D.GetDim2(), OouraFft<T>::eDirFwd);
+
+
+	//********* Multiplying F[u] by the Fresnel_propagator
+
+	index_t k, kj;
+	bool bInfAper(q2max <= 0); // infinite aperture
+	bool bC35((C3 != 0) || (C5 != 0));
+	double eta2, csi2, q2, q4, q6;
+	double dcsi = 1.0 / xap;
+	double dcsi2 = 1.0 / xap2;
+	double deta = 1.0 / yap;
+	double deta2 = 1.0 / yap2;
+	dcomplex fac1 = 2.0 * dcomplex(0.0, 1.0) * PI * dblDistance / wl;
+	double Z1 = dblDistance + Z1mZ2d2;
+	double Z2 = dblDistance - Z1mZ2d2;
+	double cosphiA = cos(phiA);
+	double sinphiA = sin(phiA);
+	double sin2phiA = 2.0 * sinphiA * cosphiA;
+	dcomplex fac2x = -dcomplex(0.0, 1.0) * PI * wl * (Z1 * cosphiA * cosphiA + Z2 * sinphiA * sinphiA);
+	dcomplex fac2y = -dcomplex(0.0, 1.0) * PI * wl * (Z2 * cosphiA * cosphiA + Z1 * sinphiA * sinphiA);
+	dcomplex facxy = -dcomplex(0.0, 1.0) * PI * wl * Z1mZ2d2 * sin2phiA;
+	facxy = facxy * deta * dcsi;
+	dcomplex fac3 = -dcomplex(0.0, 1.0) * PI * pow(wl, 3) / 2.0 * C3;
+	dcomplex fac5 = -dcomplex(0.0, 1.0) * PI * pow(wl, 5) / 3.0 * C5;
+	dcomplex ctemp, etafacxy, eta2fac2y, fac2;
+	T ttemp;
+
+	for (long i = -long(nyd2); i < 0; i++)
+	{
+		kj = nxy2 + nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y;
+		for (long j = -long(nxd2); j < 0; j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2 = fac1 + eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
+			{
+				if (bC35)
+				{
+					q4 = q2 * q2;
+					q6 = q4 * q2;
+					ctemp = std::exp(fac2 + fac3 * q4 + fac5 * q6);
+				}
+				else ctemp = std::exp(fac2);
+				ttemp = u[k] * T(ctemp.real()) - u[k + 1] * T(ctemp.imag());
+				u[k + 1] = u[k] * T(ctemp.imag()) + u[k + 1] * T(ctemp.real());
+				u[k] = ttemp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+		kj = nxy2 + nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2 = fac1 + eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
+			{
+				if (bC35)
+				{
+					q4 = q2 * q2;
+					q6 = q4 * q2;
+					ctemp = std::exp(fac2 + fac3 * q4 + fac5 * q6);
+				}
+				else ctemp = std::exp(fac2);
+				ttemp = u[k] * T(ctemp.real()) - u[k + 1] * T(ctemp.imag());
+				u[k + 1] = u[k] * T(ctemp.imag()) + u[k + 1] * T(ctemp.real());
+				u[k] = ttemp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+	}
+	for (long i = 0; i < long(nyd2); i++)
+	{
+		kj = nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y;
+		for (long j = -long(nxd2); j < 0; j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2 = fac1 + eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
+			{
+				if (bC35)
+				{
+					q4 = q2 * q2;
+					q6 = q4 * q2;
+					ctemp = std::exp(fac2 + fac3 * q4 + fac5 * q6);
+				}
+				else ctemp = std::exp(fac2);
+				ttemp = u[k] * T(ctemp.real()) - u[k + 1] * T(ctemp.imag());
+				u[k + 1] = u[k] * T(ctemp.imag()) + u[k + 1] * T(ctemp.real());
+				u[k] = ttemp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+		kj = nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2 = fac1 + eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (bInfAper || q2 < q2max)
+			{
+				if (bC35)
+				{
+					q4 = q2 * q2;
+					q6 = q4 * q2;
+					ctemp = std::exp(fac2 + fac3 * q4 + fac5 * q6);
+				}
+				else ctemp = std::exp(fac2);
+				ttemp = u[k] * T(ctemp.real()) - u[k + 1] * T(ctemp.imag());
+				u[k + 1] = u[k] * T(ctemp.imag()) + u[k + 1] * T(ctemp.real());
+				u[k] = ttemp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+	}
+
+	//********* inverse Fourier transforming F[u]*Kirchhoff_propagator
+
+	fft.Complex2D((std::complex<T> *) u, m_rXArray2D.GetDim1(),
+		m_rXArray2D.GetDim2(), OouraFft<T>::eDirInv);
+	T fact = T(1.0 / double(nxy));
+	for (k = 0; k < nxy2; k++)	u[k] *= fact;
+}
+
+
+//---------------------------------------------------------------------------
+//Function XArray2DFFT<T>::FresnelA
+//
+//	 Calculates 2D Fresnel integral
+//
+/*!
+	\brief		Calculates 2D Fresnel integral with possible astigamtism
+	\param		dblDistanceX Propagation distance corresponding to x (in the same units as used in the Wavehead2D)
+	\param		dblDistanceY Propagation distance corresponding to y (in the same units as used in the Wavehead2D)
+	\param		bCheckValidity	Determines the validity of the used implementation for given parameters
+	\param		q2max Defines the optional bandwidth limit (q2max <= 0.0 is interepreted as infinite aperture)
+	\param		C3 optional 3rd-order spherical aberration (its dimensionality is the same as for dblDistanceX and Y)
+	\param		C5 optional 5th-order spherical aberration (its dimensionality is the same as for dblDistanceX and Y)
+	\exception	std::invalid_argument is thrown if any of the two dimensions of the wrapped object
+				is not an integer power of 2; or if the object does not have an associated Wavehead2D.
+	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+				called from inside this function
+	\return		\a None
+	\par		Description:
+		This program calculates paraxial free-space propagation of the scalar complex amplitude
+		defined by the 'wrapped' XArray2D object by evaluating the correponding 2D Fresnel
+		integrals using 2D FFT and the spectral (Fourier space) representation of the Fresnel propagator.
+		APPLICABILITY: It can be used when the z-distance between the object and image planes
+		is NOT TOO LARGE : (1) applicability condition of the spectral Fresnel approximation is
+		(lambda << dx) & (lambda << dy), or (almost the same) Nyquist frequency of U0 << 1/lambda;
+		(2) sampling condition for the spectral space representation (z << a^2/lambda) & (z << b^2/lambda),
+		or <=> (NFx >> 1) & (NFy >>1)) {NFx(y)=a(b)^2/lambda/z}.
+		NOTE that here the image size in any image plane is always equal to the	initial image
+		size in the object plane.
+	\par		Example:
+\verbatim
+XArray2D<dcomplex> C0(128, 64, dcomplex(1.0, 0.0)); // create an incident plane wave
+C0.SetHeadPtr(new Wavehead2D(0.0001, -100, 100, -50, 50)); // define the wavelength and physical boundaries
+XArray2DFFT<dcomplex> InterfaceFFT2D(C0); // create a 2D FFT interface to the incident wave
+InterfaceFFT2D.Fresnel2(1.e+6, 1.1e+6); // calculate free space propagation (by 1 m for x and 1.1 m for y, if units are microns)
+\endverbatim
+*/
+template <class T> void xar::XArray2DFFT<T>::FresnelAold(double dblDistanceX, double dblDistanceY, bool bCheckValidity, double q2max, double C3, double C5)
+{
+	if (dblDistanceX == 0 && dblDistanceY == 0) return;
+
+	index_t nx = m_rXArray2D.GetDim2();
+	index_t ny = m_rXArray2D.GetDim1();
+
 	if (log2(ny) != int(log2(ny)))
 		throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T>::FresnelA (m_dim1 is not an integer power of 2)");
 	if (log2(nx) != int(log2(nx)))
@@ -540,9 +749,7 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double
 	index_t ny2 = ny * 2;
 	index_t nxy = nx * ny;
 	index_t nxy2 = nxy * 2;
-	double xap = abs(xhi - xlo);
 	double xap2 = (xhi - xlo) * (xhi - xlo);
-	double yap = abs(yhi - ylo);
 	double yap2 = (yhi - ylo) * (yhi - ylo);
 	double xst2 = xst * xst;
 	double yst2 = yst * yst;
@@ -553,8 +760,8 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double
 		throw std::runtime_error("runtime_error in XArray2DFFT<T>::FresnelA (evanescent waves present)");
 
 	//  Fresnel numbers NFx(y)=a(b)^2/wl/abs(dblDistance)=',fnumx,fnumy
-	double absdistanceX = fabs(dblDistance + Z1mZ2d2);
-	double absdistanceY = fabs(dblDistance - Z1mZ2d2);
+	double absdistanceX = fabs(dblDistanceX);
+	double absdistanceY = fabs(dblDistanceY);
 	double fnumx = xap2 / absdistanceX / wl;
 	double fnumy = yap2 / absdistanceY / wl;
 	if (bCheckValidity && (fnumx < 10 || fnumy < 10))
@@ -572,116 +779,170 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double
 	//********* Multiplying F[u] by the Fresnel_propagator
 
 	index_t k, kj;
-	bool bInfAper(q2max <= 0); // infinite aperture
 	bool bC35((C3 != 0) || (C5 != 0));
 	double eta2, csi2, q2;
-	double dcsi = 1.0 / xap;
 	double dcsi2 = 1.0 / xap2;
-	double deta = 1.0 / yap;
 	double deta2 = 1.0 / yap2;
-	dcomplex fac1 = 2.0 * dcomplex(0.0, 1.0) * PI * dblDistance / wl;
-	double Z1 = dblDistance + Z1mZ2d2;
-	double Z2 = dblDistance - Z1mZ2d2;
-	double cosphiA = cos(phiA);
-	double sinphiA = sin(phiA);
-	double sin2phiA = 2.0 * sinphiA * cosphiA;
-	dcomplex fac2x = -dcomplex(0.0, 1.0) * PI * wl * (Z1 * cosphiA * cosphiA + Z2 * sinphiA * sinphiA);
-	dcomplex fac2y = -dcomplex(0.0, 1.0) * PI * wl * (Z2 * cosphiA * cosphiA + Z1 * sinphiA * sinphiA);
-	dcomplex facxy = -dcomplex(0.0, 1.0) * PI * wl * Z1mZ2d2 * sin2phiA;
-	facxy = facxy * deta * dcsi;
+	//double dtemp = dblDistance / wl - floor(dblDistance / wl);
+	//dcomplex fac1 = std::exp(dcomplex(0.0, 1.0) * PI * 2.0 * dtemp);
+	dcomplex fac1 = dcomplex(0.0, 1.0) * PI * (dblDistanceX + dblDistanceY) / wl;
+	dcomplex fac2x = -dcomplex(0.0, 1.0) * PI * wl * dblDistanceX;
+	dcomplex fac2y = -dcomplex(0.0, 1.0) * PI * wl * dblDistanceY;
 	dcomplex fac3 = -dcomplex(0.0, 1.0) * PI * pow(wl, 3) / 2.0 * C3;
 	dcomplex fac5 = -dcomplex(0.0, 1.0) * PI * pow(wl, 5) / 3.0 * C5;
-	dcomplex ctemp, etafacxy, eta2fac2y, fac2a;
+	dcomplex ctemp, eta2fac2x, fac2a;
 
-	for (long i = -long(nyd2); i < 0; i++)
+	if (q2max > 0)
 	{
-		kj = nxy2 + nx2 * i + nx2;
-		etafacxy = facxy * double(i);
-		eta2 = deta2 * i * i;
-		eta2fac2y = eta2 * fac2y;
-		for (long j = -long(nxd2); j < 0; j++)
+		for (long i = -long(nyd2); i < 0; i++)
 		{
-			k = kj + 2 * j;
-			csi2 = dcsi2 * j * j;
-			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
-			q2 = csi2 + eta2;
-			if (bInfAper || q2 < q2max)
+			kj = nxy2 + nx2 * i + nx2;
+			eta2 = deta2 * i * i;
+			eta2fac2x = eta2 * fac2x;
+			for (long j = -long(nxd2); j < 0; j++)
 			{
-				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-				u[k] = T(std::real(ctemp));
-				u[k + 1] = T(std::imag(ctemp));
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
+				if (q2 < q2max)
+				{
+					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+					u[k] = T(std::real(ctemp));
+					u[k + 1] = T(std::imag(ctemp));
+				}
+				else
+				{
+					u[k] = T(0);
+					u[k + 1] = T(0);
+				}
 			}
-			else
+			kj = nxy2 + nx2 * i;
+			for (long j = 0; j < long(nxd2); j++)
 			{
-				u[k] = T(0);
-				u[k + 1] = T(0);
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
+				if (q2 < q2max)
+				{
+					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+					u[k] = T(std::real(ctemp));
+					u[k + 1] = T(std::imag(ctemp));
+				}
+				else
+				{
+					u[k] = T(0);
+					u[k + 1] = T(0);
+				}
 			}
 		}
-		kj = nxy2 + nx2 * i;
-		for (long j = 0; j < long(nxd2); j++)
+		for (long i = 0; i < long(nyd2); i++)
 		{
-			k = kj + 2 * j;
-			csi2 = dcsi2 * j * j;
-			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
-			q2 = csi2 + eta2;
-			if (bInfAper || q2 < q2max)
+			kj = nx2 * i + nx2;
+			eta2 = deta2 * i * i;
+			eta2fac2x = eta2 * fac2x;
+			for (long j = -long(nxd2); j < 0; j++)
 			{
-				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
-				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
-				u[k] = T(std::real(ctemp));
-				u[k + 1] = T(std::imag(ctemp));
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
+				if (q2 < q2max)
+				{
+					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+					u[k] = T(std::real(ctemp));
+					u[k + 1] = T(std::imag(ctemp));
+				}
+				else
+				{
+					u[k] = T(0);
+					u[k + 1] = T(0);
+				}
 			}
-			else
+			kj = nx2 * i;
+			for (long j = 0; j < long(nxd2); j++)
 			{
-				u[k] = T(0);
-				u[k + 1] = T(0);
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
+				if (q2 < q2max)
+				{
+					if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+					else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+					u[k] = T(std::real(ctemp));
+					u[k + 1] = T(std::imag(ctemp));
+				}
+				else
+				{
+					u[k] = T(0);
+					u[k + 1] = T(0);
+				}
 			}
 		}
 	}
-	for (long i = 0; i < long(nyd2); i++)
+	else
 	{
-		kj = nx2 * i + nx2;
-		etafacxy = facxy * double(i);
-		eta2 = deta2 * i * i;
-		eta2fac2y = eta2 * fac2y;
-		for (long j = -long(nxd2); j < 0; j++)
+		for (long i = -long(nyd2); i < 0; i++)
 		{
-			k = kj + 2 * j;
-			csi2 = dcsi2 * j * j;
-			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
-			q2 = csi2 + eta2;
-			if (bInfAper || q2 < q2max)
+			kj = nxy2 + nx2 * i + nx2;
+			eta2 = deta2 * i * i;
+			eta2fac2x = eta2 * fac2x;
+			for (long j = -long(nxd2); j < 0; j++)
 			{
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
 				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
 				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
 				u[k] = T(std::real(ctemp));
 				u[k + 1] = T(std::imag(ctemp));
 			}
-			else
+			kj = nxy2 + nx2 * i;
+			for (long j = 0; j < long(nxd2); j++)
 			{
-				u[k] = T(0);
-				u[k + 1] = T(0);
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
+				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+				u[k] = T(std::real(ctemp));
+				u[k + 1] = T(std::imag(ctemp));
 			}
 		}
-		kj = nx2 * i;
-		for (long j = 0; j < long(nxd2); j++)
+		for (long i = 0; i < long(nyd2); i++)
 		{
-			k = kj + 2 * j;
-			csi2 = dcsi2 * j * j;
-			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
-			q2 = csi2 + eta2;
-			if (bInfAper || q2 < q2max)
+			kj = nx2 * i + nx2;
+			eta2 = deta2 * i * i;
+			eta2fac2x = eta2 * fac2x;
+			for (long j = -long(nxd2); j < 0; j++)
 			{
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
 				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
 				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
 				u[k] = T(std::real(ctemp));
 				u[k + 1] = T(std::imag(ctemp));
 			}
-			else
+			kj = nx2 * i;
+			for (long j = 0; j < long(nxd2); j++)
 			{
-				u[k] = T(0);
-				u[k + 1] = T(0);
+				k = kj + 2 * j;
+				csi2 = dcsi2 * j * j;
+				fac2a = eta2fac2x + csi2 * fac2y;
+				q2 = csi2 + eta2;
+				if (bC35) ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a + fac3 * q2 * q2 + fac5 * pow(q2, 3));
+				else ctemp = dcomplex(u[k], u[k + 1]) * std::exp(fac1 + fac2a);
+				u[k] = T(std::real(ctemp));
+				u[k + 1] = T(std::imag(ctemp));
 			}
 		}
 	}
@@ -693,6 +954,7 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double
 	T fact = T(1.0 / double(nxy));
 	for (k = 0; k < nxy2; k++)	u[k] *= fact;
 }
+
 
 //---------------------------------------------------------------------------
 //Function XArray2DFFT<T>::FresnelFar
@@ -706,7 +968,7 @@ template <class T> void xar::XArray2DFFT<T>::FresnelA(double dblDistance, double
 	\param		bCheckValidity	Determines the validity of the used implementation for given parameters
 	\exception	std::invalid_argument is thrown if any of the two dimensions of the wrapped object
 				is not an integer power of 2; or if the object does not have an associated Wavehead2D.
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -742,6 +1004,8 @@ InterfaceFFT2D.FresnelFar(1.e+8); // calculate free space propagation (by 100 m,
 //
 template <class T> void xar::XArray2DFFT<T>::FresnelFar(double dblDistance, bool bCheckValidity)
 {
+	if (m_bFFT) throw std::invalid_argument("invalid_argument 'm_rXArray2D' in XArray2DFFT<T>::FresnelFar (m_rXArray2D is in the FFT state)");
+
 	if (dblDistance==0) return;
 
 	IXAHWave2D* ph2 = GetIXAHWave2D(m_rXArray2D);

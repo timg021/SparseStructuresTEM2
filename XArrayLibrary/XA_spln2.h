@@ -152,11 +152,11 @@ template<> inline xar::_eValueType xar::XArray2DSpln<double>::GetValuetype() { r
 
 // NOTE!!! Complex-valued arrays would require specialized templates for some functions of this class
 
-const double xar::XArray2DSpln<char>::m_a05 = 0.5;
-const double xar::XArray2DSpln<short>::m_a05 = 0.5;
-const double xar::XArray2DSpln<long>::m_a05 = 0.5;
-const double xar::XArray2DSpln<float>::m_a05 = 0.0;
-const double xar::XArray2DSpln<double>::m_a05 = 0.0;
+template<> const double xar::XArray2DSpln<char>::m_a05 = 0.5;
+template<> const double xar::XArray2DSpln<short>::m_a05 = 0.5;
+template<> const double xar::XArray2DSpln<long>::m_a05 = 0.5;
+template<> const double xar::XArray2DSpln<float>::m_a05 = 0.0;
+template<> const double xar::XArray2DSpln<double>::m_a05 = 0.0;
 
 
 //! Constructor
@@ -217,7 +217,7 @@ template <class T> void xar::XArray2DSpln<T>::operator=(const XArray2DSpln<T>& r
 	\brief		Produces an interpolated value at point (dblX, dblY)
 	\param		dblY Y-coordinate of the interpolation point
 	\param		dblX X-coordinate of the interpolation point
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a The interpolated value
 	\par		Description:
@@ -267,7 +267,7 @@ template <class T> T xar::XArray2DSpln<T>::Lin2_spln(double dblY, double dblX) c
 	\param		xaResult Resultant interpolated 2D array
 	\param		dblY Y-coordinate of the interpolation point
 	\param		dblX X-coordinate of the interpolation point
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -329,7 +329,7 @@ template <class T> void xar::XArray2DSpln<T>::Interpolate(XArray2D<T>& xaResult,
 	\param		xaResult Resultant interpolated 2D array
 	\param		dblY Y-coordinate of the interpolation point
 	\param		dblX X-coordinate of the interpolation point
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -361,7 +361,7 @@ template <class T> void xar::XArray2DSpln<T>::Interpolate(XArray2D<T>& xaResult,
 	\param		dblYCentre Y-coordinate of the centre of rotation
 	\param		dblXCentre X-coordinate of the centre of rotation
 	\param		Backgr Value for filling "background" areas around the rotated array
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -594,7 +594,7 @@ template <class T> void xar::XArray2DSpln<T>::Rotate1(XArray2D<T>& xaResult, con
 	\param		dblYCentre Y-coordinate of the centre of rotation
 	\param		dblXCentre X-coordinate of the centre of rotation
 	\param		Backgr Value for filling "background" areas around the (de)magnified array
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:
@@ -681,7 +681,7 @@ template <class T> void xar::XArray2DSpln<T>::Magnify(XArray2D<T>& xaResult, dou
 	\param		dblAngleYAxis Angle between the tilt axis and Y-axis (degrees)
 	\param		dblTiltAngle Tilt angle (degrees)
 	\param		Backgr Value for filling "background" areas around the tilted array
-	\exception	std::exception and derived exceptions can be thrown indirectly by the functions
+	\exception	std::runtime_error and derived exceptions can be thrown indirectly by the functions
 				called from inside this function
 	\return		\a None
 	\par		Description:

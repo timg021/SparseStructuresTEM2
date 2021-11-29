@@ -48,8 +48,11 @@ Here is a typical example of a valid Pdb-compare.txt parameter file.
 3.Rotate_test_structure_around_z,_y'_and_z"_axes_by_(degrees): 0 0 0
 4.Input_reference_file_name: 7kod_DW_noH.xyz
 5.Type_of_the_input_reference_file_(see_below): 2
-6.Output_file_name: zzzmg2000_compare.txt
-7.Free-form_line_for_output_file: ***
+6.Maximum_distance_in_Angstroms_for_atom_matching: 1.0
+7.Sort_output:_0=no_sort_1=increasing_z_2=increasing_matched_distance: 0
+8.Use_Hungarian_algorithm_(0=no,_1=yes): 0
+9.Output_file_name: zzzmg2000_compare.txt
+10.Free-form_line_for_output_file: ***
 
 //Input parameter file for pdb.exe program
 //1st line contains input test file name
@@ -57,8 +60,12 @@ Here is a typical example of a valid Pdb-compare.txt parameter file.
 //3rd line contains Euler rotation angles in degrees that are applied to the test structure before comparison
 //4th line contains input reference file name - must be equal to or longer than the test file
 //5th line: type of the 2nd input file: 0 - PDB input file, 1 - Vesta XYZ input file, 2 - Kirkland XYZ file.
-//6th line contains output file name
-//7th line contains the free-form info line that will be recorded into the first line of the output file
+//6th line contains the maximum distance in Angstroms below which a found atom match is considered acceptable
+//7th line: output file sorting: 0 - no sort, 1 - sort by ascending order of z coordinate, 2- sort by distances between the matched test and reference atoms in the ascending order
+//8th line: switch for the use of a more accurate, but potentially very slow, Hungarian matching algorithm: 0 = don't use Hungarian algorithm, 1 = use it.
+//			for any structures with approximately 100 or more atoms, the Hungarian algorithm option is likely to be too slow
+//9th line contains output file name
+//10th line contains the free-form info line that will be recorded into the first line of the output file
 ========================================================================================
 
 Note that the "numbering" of parameters in the parameter names, such as "2" in 
@@ -82,7 +89,7 @@ Parameter 2 can be equal to 0, 1 or 2. It defines the format of the first input 
 
 Parameter 3 contains Euler rotation angles (around z, y and z" axes, in this order) in degrees that are applied
 to the test structure before comparison with the reference structure. This can be helpful in checking known symmetries
-of the structures.
+of molecules.
 
 Parameter 4 contains the name of a "reference" atomic structure file in PDB , Vesta XYZ or
 Kirkland XYZ format. This input file must be present in the same folder where Pdb-compare.exe is started from, or, 
@@ -93,9 +100,23 @@ Parameter 5 can be equal to 0, 1 or 2. It defines the format of the second input
 "1" corresponds to Vesta XYZ input file format.
 "2" corresponds to Kirkland XYZ input file format.
 
-Parameter 6 contains the name of the output file. This file will be saved in ASCII text format.
+Parameter 6 contains the maximum distance in Angstroms for position matching: for a pair of postitions to be considered,
+the distance between them must be smaller than this distance.
 
-Parameter 7 contains a free-form information line (with no white spaces) that is written 
+Parameter 7 can be equal to 0, 1 or 2. "0" means that the output is not sorted, "1" causes the output to be sorted
+by ascending order of z coordinate, "2" sorts the output by distances between the matched test and reference atoms 
+in the ascending order.
+
+Parameter 8 contains a switch for using of a more accurate, but potentially very slow, Hungarian matching algorithm.
+"0" means don't use Hungarian algorithm,
+"1" means use it.
+Note that for any structures with approximately 100 or more atoms, the Hungarian algorithm is likely to be too slow
+and so should not be used. On the plus side, the Hungarian algorithm always finds the globally optimal pairing (matching)
+for all entries if the sizes of the two structures are equal.
+
+Parameter 9 contains the name of the output file. This file will be saved in ASCII text format.
+
+Parameter 10 contains a free-form information line (with no white spaces) that is written 
 as the first line in the output file.
 
 ================================================================================================== 
@@ -179,3 +200,34 @@ H
 0.142800 0.451400 0.466700
 
 ============================================================================================================
+Example of the output of pdb-compare.exe program (the output file is truncated here):
+
+For each atom from aoutA.xyz file, locating the closest atom in 7a6a_1A.xyz file.
+Each entry contains the following data:
+1st column contains atomic numbers (reference data)
+2nd, 3rd, and 4th columns contain x, y and z atomic coordinates, respectively (reference data)
+5th column contains the L2 distance between atoms in the test and the matched reference data.
+6th column contains atomic numbers (matched test data)
+7th, 8th, and 9th columns contain x, y and z atomic coordinates, respectively (matched test data)
+10th column contains original data for the test file
+***
+
+27846 atoms (out of total 39453 atoms) from the reference structure (i.e. 70.5802 percent) have been uniquely matched with atoms of the test structure.
+The result contains 11607 false negatives (29.4198 percent) and 9609 false positives (25.6548 percent).
+Average distance between the matched test and template atoms = 0.735363.
+Maximum distance between the matched test and template atoms = 1.49864.
+Standard deviation of the distance between the matched test and template atoms = 0.323851.
+
+@@@ Reference atom no. 120, atom type = 11, atom positions = (87.2, 80.318, 105.387) has not been matched.
+@@@ Reference atom no. 121, atom type = 11, atom positions = (88.074, 88.074, 88.074) has not been matched.
+@@@ Reference atom no. 122, atom type = 11, atom positions = (128.598, 80.317, 87.201) has not been matched.
+..........
+
+16 123.280998 135.154999 71.859001 0.675488 6 122.932999 135.272003 71.292000 0.092481 
+16 122.460999 124.480003 68.086998 0.925019 6 122.475998 124.304001 67.179001 0.103184 
+8 62.680000 95.509003 98.344002 1.473724 6 62.609001 94.141998 97.797997 0.180814 
+8 65.669998 95.946999 96.788002 1.162864 6 65.350998 96.427002 97.797997 0.156825 
+8 67.336998 99.219002 95.654999 0.970796 6 67.636002 98.711998 96.427002 0.134750 
+8 66.046997 102.511002 99.490997 0.870627 6 66.264999 101.911003 100.083000 0.029637 
+8 70.445999 96.485001 94.967003 1.459293 6 69.463997 96.884003 95.970001 0.303539 
+..........

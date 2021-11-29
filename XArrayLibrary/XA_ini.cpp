@@ -74,7 +74,7 @@ namespace xar
 			printf("\n%s\n", strTemp.c_str());
 		#endif
 	}
-
+/*
 	int _matherr(struct _exception* pE)
 	//This function replaces the standard _matherr function referred to in <math.h> to make the
 	//handling of errors produced by functions from math.h consistent with VO exception handling convention
@@ -115,7 +115,7 @@ namespace xar
 		throw std::runtime_error(description);
 		return int(pE->type);
 	}
-
+*/
 
 	double ExeTimer(bool initialize)
 	{
