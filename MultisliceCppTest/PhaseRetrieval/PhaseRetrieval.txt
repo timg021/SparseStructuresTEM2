@@ -10,8 +10,8 @@
 9.Wavelength_in_Angstroms: 0.02507934
 10.Objective_aperture_in_mrad: 40.0
 11.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
- 
-13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_conventional_CTF_correction(5): 3
+12.Absorption_coefficient_(fraction_of_the_real_part): 0.0
+13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_cCTF(5): 3
 14.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
 15.Maximal_number_of_iterations(IWFR): 200
 16.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2,vCTF,cCTF)_or_multiplicative_factor(-0.5LogAmp): 0
