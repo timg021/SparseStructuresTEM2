@@ -79,25 +79,26 @@ Here is a typical example of a valid PhaseRetrieval.txt parameter file.
 9.Wavelength_in_Angstroms: 0.01968749
 10.Objective_aperture_(half_angle)_in_mrad: 0.0
 11.Spherical_aberration_Cs3,_Cs5_in_mm: 2.7 0.0
-12.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3)_or_ConjPhaseGausBeam(4): 3
-13.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
-14.Maximal_number_of_iterations(IWFR): 200
-15.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2)_or_multiplicative_factor(-0.5LogAmp,ConjPhaseGausBeam): 1.0
-16.Output_defocus_distances_min_and_max_in_Angstroms: -233.984 0.0
-17.Extra_defocus_for_3D_reconstruction_in_Angstroms_(0_activates_CTF-CT_mode): 100.0
-18.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
-19.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
-20.Inverse_3D_Laplacian_mode:_not_apply(0)_or_apply(1): 0
-21.Regularization_parameter_for_inverse_3D_Laplacian_filter: 0.0
-22.Low-pass_filter_width_in_Angstroms,_background_subtraction_value_and_lower_threshold_level_in_Volts: 4.0 0.552 0.0
-23.Reprojection_of_3D_potential:_not_apply(0)_or_apply(1): 0
-24.Slice_thickness_for_multislice_in_Angstroms: 1.25
-25.Peak_localization_mode:_not_apply(0)_or_apply(1): 1
-26.Cube_side_length_for_peak_localization_in_Angstroms: 1.0
-27.File_name_base_of_3D_potential_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\aout.grd
-28.Import_and_reprocess_existing_3D_potential_files:_No(0)_or_Yes(1): 1
-29.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
-30.Number_of_parallel_threads: 20
+12.Absorption_coefficient_(fraction_of_the_real_part): 0.1
+13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_conventional-CTF(5): 3
+14.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
+15.Maximal_number_of_iterations(IWFR): 200
+16.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2)_or_multiplicative_factor(-0.5LogAmp,ConjPhaseGausBeam): 1.0
+17.Output_defocus_distances_min_and_max_in_Angstroms: -233.984 0.0
+18.Extra_defocus_for_3D_reconstruction_in_Angstroms_(0_activates_CTF-CT_mode): 100.0
+19.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
+20.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
+21.Inverse_3D_Laplacian_mode:_not_apply(0)_or_apply(1): 0
+22.Regularization_parameter_for_inverse_3D_Laplacian_filter: 0.0
+23.Low-pass_filter_width_in_Angstroms,_background_subtraction_value_and_lower_threshold_level_in_Volts: 4.0 0.552 0.0
+24.Reprojection_of_3D_potential:_not_apply(0)_or_apply(1): 0
+25.Slice_thickness_for_multislice_in_Angstroms: 1.25
+26.Peak_localization_mode:_not_apply(0)_or_apply(1): 1
+27.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_Angstroms: 1.0 1.0
+28.File_name_base_of_3D_potential_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\aout.grd
+29.Import_and_reprocess_existing_3D_potential_files:_No(0)_or_Yes(1): 1
+30.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
+32.Number_of_parallel_threads: 20
 //*****
 //Wavelength_in_Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
 //*****!!!Don't forget to save this file after editing the parameters
@@ -223,7 +224,12 @@ interpreted as an infinite aperture.
 Parameter 11 contains the values of the spherical aberrations Cs3 and Cs5 (in millimetres) of 
 the imaging system. Zero values correspond to the absence of aberrations.
 
-Parameter 12 can be equal to 1, 2, 3 or 4. It determines the 2D phase retrieval method to be used as 
+Parameter 12 contains the value of the absorption coefficient in the form of a fraction of the real increment of
+the refractive index, i.e. if n = 1 + delta + i beta, then this coefficient is equal to beta / delta. The value must
+be between -1 and 1 (inclusive). Typical value for electron microscopy is between zero and 0.1. At this time,
+the absorption coefficient is only taken into account in the methods corresponding to Parameter 13 equal to 4 and 5.
+
+Parameter 13 can be equal to 1, 2, 3, 4 or 5. It determines the 2D phase retrieval method to be used as 
 part of the DHT algorithm internally in the PhaseRetrieval.exe program. Method 1
 can be used only in the case when there 2 or more defocused images per each illumination directon,
 while the methods 3 and 4 can be used only when there is 1 defocused image at each illumination direction. 
@@ -237,85 +243,79 @@ a simple conventional CTF phase retrieval method is used in the CTF-CT mode, rec
 in different transverse planes inside the reconstructed volume from the single defocused image 
 using the CTF formula for the weak phase object intensity propagation (J. Cowley, Diffraction Physics, 1985).
 "3" corresponds to the retrieval of conjugated phase from a single defocused image as Phase~ = -0.5 * (Intensity / I0 - 1).
-"4" corresponds to conjugated phase retrieval from a single defocused image as
-Phase~ = -NF^(-1) + sqrt[NF^(-2) + (Intensity / I0) - 1]. Here NF is the Fresnel number 
-NF = lambda * z / (2 * PI * sigma^2). Additional factors may appear depending on Parameter 15.
-When input defocused complex amplitudes are specified in Parameter 4, the 
-2D phase retrieval step is skipped.
+"4" corresponds to variable-distance CTF correction method: Weak Phase Object CTF correction is applied according
+to different distances between the image plane and different transverse planes in the reconstructed volume.
+"5" corresponds to conventional (single-distance) CTF correction method: CTF correction is applied according to the distance
+between the image plane and the centre of the reconstructed volume. The obtained phase distribution is then copied unchanged 
+from the central plane to all other transverse planes in the reconstructed volume.
+When input defocused complex amplitudes are specified in Parameter 4, and the phase retrieval method is equal to 1,2 or 3, 
+the 2D phase retrieval step is skipped and the input complex amplitude is used in the Fresnel backpropagation step. 
+When input defocused complex amplitudes are specified in Parameter 4, and the phase retrieval method is equal to 4 or 5,
+the intensity of the complex amplitude is used as input to the CTF-correction step.
 
-Parameter 13 specifies if the phase-retrieved defocused complex amplitudes are to be saved in 
+Parameter 14 specifies if the phase-retrieved defocused complex amplitudes are to be saved in 
 GRC files. If this parameter is equal to 1, then the phase-retrieved defocused complex amplitudes
 are saved to GRC files, with the names that are created by modifying the input defocused intensity
 filenames by changing the file extensions to ".grc" and adding the capital letter "D" before that
 file extension.
 
-Parameter 14 specifies the maximal allowed number of iterations to be used in the IWFR 
+Parameter 15 specifies the maximal allowed number of iterations to be used in the IWFR 
 algorithm. This parameter is ignored in the cases when there IWFR method is not used.
 
-Parameter 15 specifies, depending on the value of Parameter 12, either the minimal phase 
-reconstruction error (typical value ~ 1.e-8) which leads to the interruption of the IWFR iterations
-(note that in the "verbose" mode - see below - PhaseRetrieval.exe outputs the value of the phase 
-reconstruction error at each IWFR iteration, so these values can be used as a guide for setting a 
-sensible value of the minimal error in this parameter), or the Tikhonov regularization 
-parameter (typical value ~ 1.e-12) for the CTF-L2 algorithm (setting this parameter to zero forces the 
-internal implementation of the CTF-L2 algorithm to use an estimated "optimal" value of this 
-parameter which can be different at each illumination direction), or the multiplication_factor "Fact"
-for the Min05LogAmp or ConjPhaseGausBeam algorithms, such that 
-Phase~ = Fact * {-0.5 * (Intensity / I0 - 1)} and  
-Phase~ = Fact * {-NF^(-1) + sqrt[NF^(-2) + (Intensity / I0) - 1]}, respectively.
-Finally, when Parameter 17 is equal to zero, and as a consequence the convential CTF-CT algorithm
-is applied, Parameter 15 is interpreted as a Tikhonov regularization parameter in the CTF correction
-step. In this case, when Parameter 15 is equal to zero, automatic selection of the Tikhonov regularization
-parameter is used, which is supposed to maximize the reconstruction accuracy. Note, however, that when
-the input images are noisy, such automatic choice of the Tikhonov regularization parameter is usually
-unsatisfactory, and a larger value of this parameter should be used (e.g. 0.01).
+Parameter 16 specifies the following parameters, depending on the value of Parameter 13:
+(a) The pre-defined minimal phase reconstruction error in the case of the IWFR algorithm.
+Typical value is ~ 1.e-8. IWFR iterations are interrupted when the relative difference with 
+the previous iteration becomes smaller than this value.
+(b) Tikhonov regularization parameter in the case of CTFL2, vCTF and CTF algorithms.
+Typical value is ~ 1.e-12 for the CTFL2 algorithm or 0.01 for the vCTF and cCTF algorithms.
+Setting this parameter to zero forces the internal implementation of the CTF correction algorithms
+to use an estimated "optimal" value of this parameter which can be different at each illumination direction.
+Note that in the case of vCTF and cCTF algorithms this "optimal" value is often too small and the "typical"
+value 0.01 tends to produce better results.
+(c) multiplication_factor "Fact" for the Min05LogAmp algorithm, such that 
+Phase~ = Fact * {-0.5 * (Intensity / I0 - 1)}. Typical value is Fact = 1.0.  
 
-Parameter 16 contains the minimum and the maximum z coordinate in angstroms for the output (xy) 
+Parameter 17 contains the minimum and the maximum z coordinate in angstroms for the output (xy) 
 planes at which the 3D potential is reconstructed. In order to reconstruct the 3D electrostatic potential
 inside a molecule of thickness D, the zmin and zmax values should normally be set to -D/2 and D/2, respectively.
 Note also that this program requires the x, y and z grid steps to be the same, and it will always use
 the z grid step equal to the value given in Parameter 7. 
 
-Parameter 17 contains the "extra defocus" / "offset" distance in angstroms used in the DHT algorithm 
-for 3D reconstruction. See details in [T.E. Gureyev et al., arXiv 2012.07012]. Note that when this parameter
-is equal to 0, the DHT/CHR algortithm will be substituted with the pure-phase CTF-corrected
-CT algorithm for the reconstruction of the 3D potential. The latter algorithm will be used in the conventional
-CT mode if the value of Parameter 12 is different from 2, or in the variable z-distance CTF-CT mode, if 
-Parameter 12 is equal to 2. If an application of the DHT algorithm with zero extra defocus (offset) parameter is
-required, this parameter should be set to some small, but non-zero positive value, e.g. 1.e-6 (i.e. a value smaller
-than the value given in Parameter 7).
+Parameter 18 contains the "extra defocus" / "offset" distance in angstroms used in the DHT or CHR algorithms 
+for 3D reconstruction. See details in [T.E. Gureyev et al., arXiv 2012.07012]. In the case of CTF correction
+algorithms, this value is typically set to zero.
 
-Parameter 18 can be equal to 0 (no symmetry enforcement will be applied), 1 (symmetry enforcement will be
-applied during the reconstruction - see parameter 19 for details) or 2 (symmetry enforcement will be
+Parameter 19 can be equal to 0 (no symmetry enforcement will be applied), 1 (symmetry enforcement will be
+applied during the reconstruction - see parameter 20 for details) or 2 (symmetry enforcement will be
 applied after the 3D reconstruction or applied to a previously reconstructed 3D potential imported from
-files, depending on the value of parameter 28).
+files, depending on the value of parameter 29).
 
-Parameter 19 contains a name of an input file (in the same format as a .txt format in parameter 2 above),
+Parameter 20 contains a name of an input file (in the same format as a .txt format in parameter 2 above),
 with Euler rotation angles (in degrees) corresponding to 3D rotations enforcing a known symmetry of the 3D potential.
-If parameter 18 is equal to 1, all input illumination angles from the file given in parameter 2
-will be split into subsets assigned to each of the symmetry orientations from the file given in parameter 19,
+If parameter 19 is equal to 1, all input illumination angles from the file given in parameter 2
+will be split into subsets assigned to each of the symmetry orientations from the file given in parameter 20,
 and the reconstructed object will be rotated to the corresponding orientation for each of this subsets during
-the reconstruction. If parameter 18 is equal to 2, the reconstructed or imported potential will be rotated to each one
+the reconstruction. If parameter 19 is equal to 2, the reconstructed or imported potential will be rotated to each one
 of these angles and averaged over all such rotations. The first entry in this input symmetry file
 is always expected to contain all zero angles, corresponding to the "initial" rotational position 
 of the reconstructed 3D potential. Defocus distances present in the input file will be ignored.
 
-Parameter 20 can be equal to 0 or 1. It determines if and how the inverse 3D Laplacian 
+Parameter 21 can be equal to 0 or 1. It determines if and how the inverse 3D Laplacian 
 filter is applied to the 3D potential. "0" corresponds to not applying the inverse 3D Laplacian. 
 "1" corresponds to applying it. A typical usage cycle of PhaseRetrieval.exe may consist of an initial 
 reconstruction of the 3D potential from defocused images and saving them into files in the 
-first run of PhaseRetrieval.exe, with Parameter 20 set to 0, Parameters 22 set to "0 0 -1.e+6" and
-Parameters 25 and 28 set to 0. This may be followed by a second run (restart) of PhaseRetrieval.exe program, 
-with a suitably modified parameter file, where Parameter 20 is set to 1, and Parameters 22 are set to 
-some suitable values for background removal and Parameter 28 set to 1. The filtered 3D potential is saved
-in the GRD or TIFF files in the folder specified by Parameter 29, and with the names that are obtained
-from the names defined by Parameter 27 by inserting letter "R" at the end of the filename, 
+first run of PhaseRetrieval.exe, with Parameter 21 set to 0, Parameters 23 set to "0 0 -1.e+6" and
+Parameters 26 and 29 set to 0. This may be followed by a second run (restart) of PhaseRetrieval.exe program, 
+with a suitably modified parameter file, where Parameter 21 is set to 1, and Parameters 23 are set to 
+some suitable values for background removal and Parameter 29 set to 1. The filtered 3D potential is saved
+in the GRD or TIFF files in the folder specified by Parameter 30, and with the names that are obtained
+from the names defined by Parameter 28 by inserting letter "R" at the end of the filename, 
 immediately preceding the file extension. 
 
-Parameter 21 contains the regularization parameter for the inverse 3D Laplacian filter. If the 
+Parameter 22 contains the regularization parameter for the inverse 3D Laplacian filter. If the 
 filter is not used, this parameter is ignored.
 
-Parameter 22 contains the low-pass filter width in angstroms, the background subtraction value in volts and 
+Parameter 23 contains the low-pass filter width in angstroms, the background subtraction value in volts and 
 the lower threshold value in volts to be applied to the reconstructed 3D potential. The low-pass filter
 width corresponds to the width of a 3D Gaussian with which the reconstructed 3D potential distribution
 is convolved, followed by the subtraction of this low-pass filtered version of the potential from the 
@@ -336,69 +336,69 @@ defocused images with the contrast in the input defocused images. Note that the 
 input and re-projected defocused images are printed out by PhaseRetrieval.exe before the end of the execution,
 so these can be checked by the user.
 
-Parameter 23 can be equal to 0 or 1. When this parameter is set to 0, the multislice 
+Parameter 24 can be equal to 0 or 1. When this parameter is set to 0, the multislice 
 reprojection of the reconstructed 3D potential is not applied. When this parameter is set to 1, 
 the multislice reprojection of the reconstructed 3D potential is applied. When this parameter 
-is set to 1 and Parameter 28 is set to 1, the initial reconstruction of the 3D potential is skipped, 
-the distribution of the potential is read from the files defined by Parameter 27 and the multislice 
+is set to 1 and Parameter 29 is set to 1, the initial reconstruction of the 3D potential is skipped, 
+the distribution of the potential is read from the files defined by Parameter 28 and the multislice 
 reprojection is applied to the imported potential. This is preceded by the renormalization of the imported 
-potential according to Parameter 22, with the rescaled potential saved in the GRD or TIFF files with
-the names that are obtained from the names defined by Parameter 27 by inserting letter "R"
-at the end of the filename, immediately preceding the file extension. When Parameter 23 is equal
+potential according to Parameter 23, with the rescaled potential saved in the GRD or TIFF files with
+the names that are obtained from the names defined by Parameter 28 by inserting letter "R"
+at the end of the filename, immediately preceding the file extension. When Parameter 24 is equal
 to 1, the defocused complex amplitudes are calculated at the angular positions defined 
 in the file specified in Parameter 2. These defocused complex amplitudes are saved in the 
 GRC files with the names that correspond to those in Parameter 2, but with the file extension
 always replaced by ".grc" and the letter "R" inserted at the end of the filename, immediately
-preceding the file extension. These file are saved in the folder specified in Parameter 29.
+preceding the file extension. These file are saved in the folder specified in Parameter 30.
 
-Parameter 24 defines the slice thickness in angstroms for the multislice algorithm used for the 
+Parameter 25 defines the slice thickness in angstroms for the multislice algorithm used for the 
 reprojection of the reconstructed or imported 3D potential. If the reprojection is not performed,
 this parameter is ignored.
 
-Parameter 25 can be equal to 0 or 1. When this parameter is set to 0, the peak localization in
+Parameter 26 can be equal to 0 or 1. When this parameter is set to 0, the peak localization in
 the reconstructed 3D potential is not performed. When this parameter is set to 1, 
 the peak localization in the reconstructed 3D potential is performed. When this parameter 
-is set to 1 and Parameter 28 is set to 1, the initial reconstruction of the 3D potential is skipped,
-the distribution of the potential is read from the files defined by Parameter 27 and the peak localization is 
+is set to 1 and Parameter 29 is set to 1, the initial reconstruction of the 3D potential is skipped,
+the distribution of the potential is read from the files defined by Parameter 28 and the peak localization is 
 performed in the imported 3D potential. This is preceded by the renormalization of the imported potential 
-according to Parameter 22, with the renormalized potential saved in the GRD or TIFF files in the
-folder specified by Parameter 29 and with the names that are obtained from the names defined
-by Parameter 27, but with inserted letter "R" at the end of the filename, 
+according to Parameter 23, with the renormalized potential saved in the GRD or TIFF files in the
+folder specified by Parameter 30 and with the names that are obtained from the names defined
+by Parameter 28, but with inserted letter "R" at the end of the filename, 
 immediately preceding the file extension. The "peak-localized" 3D potential is also saved in the
-GRD or TIFF files in the folder specified by Parameter 29, and with the names that are obtained from 
-the names defined by Parameter 27, but with inserted letter "A" at the end of the filename, 
+GRD or TIFF files in the folder specified by Parameter 30, and with the names that are obtained from 
+the names defined by Parameter 28, but with inserted letter "A" at the end of the filename, 
 immediately preceding the file extension. The positions of the located peaks, as well as their intensities,
 will be also saved in a Kirkland-type XYZ molecular file, provided that the number of peaks is less
 than a pre-defined maximum (currently this is set to 500,000; this is done in order to avoid extremely
 large XYZ files to be saved on a hard disk, which may take a very long time and occupy a lot of disk space).
-The name of this XYZ file is created from the name template defined by Parameter 27, but with inserted letter "A"
+The name of this XYZ file is created from the name template defined by Parameter 28, but with inserted letter "A"
 at the end of the filename, immediately preceding the file extension, which in turn is changed
-to ".xyz" here. This file is also saved in the folder specified in Parameter 29.
+to ".xyz" here. This file is also saved in the folder specified in Parameter 30.
 
-Parameter 26 defines the length (in angstroms) of the side of a moving cubic area ("box") that is
+Parameter 27 defines the length (in angstroms) of the side of a moving parallelepiped area ("box") that is
 used for peak localization in the reconstructed or imported 3D potential. Note that we exclude the
 "atom_size"-wide vicinity of the outer boundary from this search, as we expect that this vicinity
-may oten contain artefacts. If the peak localization is not performed, parameter 26 is ignored. 
+may oten contain artefacts. If the peak localization is not performed, parameter 27 is ignored. 
 
-Parameter 27 contains a fully specified pathname for the output or input files (in GRD 
+Parameter 28 contains a fully specified pathname for the output or input files (in GRD 
 format  or uncompressed 32-bit floating-point TIFF format) containing 2D sections of 
 the 3D electrostatic potential where the potential is either 
 reconstructed by this program or was produced previously and saved in these files (the 
-behaviour depends on the values of Parameter 28). Note that here the pathname 
+behaviour depends on the values of Parameter 29). Note that here the pathname 
 contains a "template" for the eventual output filenames which PhaseRetrieval.exe creates by 
 inserting numbers that correspond to the z-index of a (xy) plane with a 2D section of the 3D 
 potential. As a result, when a filename template "out.grd" is given in this parameter, the 
 actual filenames with the 3D potential may look like "out000.grd, out001.grd,..., out255.grd", 
-if 256 (xy) planes are specified as a consequence of the values in Parameters 7 and 16.
+if 256 (xy) planes are specified as a consequence of the values in Parameters 7 and 17.
 
-Parameter 28 can be equal to 0 or 1. When this parameter is set to 0, the DHT reconstruction
+Parameter 29 can be equal to 0 or 1. When this parameter is set to 0, the DHT reconstruction
 of the 3D potential from defocused images is performed. When this parameter is set to 1, 
-the previously calculated 3D potential is imported from files specified in Parameter 27.
+the previously calculated 3D potential is imported from files specified in Parameter 28.
 
-Parameter 29 contains a fully specified pathname for the output of various auxiliary files. 
+Parameter 30 contains a fully specified pathname for the output of various auxiliary files. 
 The specified folder must already exist in an accessible location.
 
-Parameter 30 contains the desired number of worker threads to launch during the execution of 
+Parameter 31 contains the desired number of worker threads to launch during the execution of 
 PhaseRetrieval.exe. The recommend number is equal to the hyper-threading capacity of one's 
 computer (often, this number is equal to the number of available CPU cores times 2), minus 1 
 (one thread may be reserved for the "main user thread" that leaves the computer responsive to 

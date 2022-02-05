@@ -1260,6 +1260,7 @@ namespace xar
 	template void MakeComplex(const XArray<double>& A, const XArray<double>& B, XArray<dcomplex>& C, bool bMakePolar);
 	template void MakeComplex(const XArray<float>& A, const XArray<float>& B, XArray<fcomplex>& C, bool bMakePolar);
 	template void MakeComplex(const XArray<double>& A, double b, XArray<dcomplex>& C, bool bMakePolar);
+	template void MakeComplex(const XArray<float>& A, float b, XArray<fcomplex>& C, bool bMakePolar);
 	template void MultiplyExpiFi(XArray<dcomplex>& C, const XArray<double>& Fi);
 	template void MultiplyExpiFi(XArray<fcomplex>& C, const XArray<float>& Fi);
 	template void Abs2(const XArray<dcomplex>& C, XArray<double>& A);

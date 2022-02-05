@@ -194,7 +194,7 @@ namespace xar
 		index_t i, iSize = 0;
 		for (;;) 
 		{ 
-			if (fgets(buf, 128, fp) <= 0)
+			if (fgets(buf, 128, fp) == 0)
 				break;
 			else
 			{
@@ -275,7 +275,7 @@ namespace xar
 		index_t i, iSize = 0;
 		for (;;)
 		{
-			if (fgets(buf, 128, fp) <= 0)
+			if (fgets(buf, 128, fp) == 0)
 				break;
 			else
 			{

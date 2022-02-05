@@ -10,27 +10,26 @@
 9.Wavelength_in_Angstroms: 0.02507934
 10.Objective_aperture_in_mrad: 40.0
 11.Spherical_aberration_Cs3,_Cs5_in_mm: 0.0 0.0
-12.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3)_or_ConjPhaseGausBeam(4): 3
-13.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
-14.Maximal_number_of_iterations(IWFR): 200
-15.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2)_or_multiplicative_factor(-0.5LogAmp,ConjPhaseGausBeam): 0
-16.Output_defocus_distances_min_and_max_in_Angstroms: -116.0 116.0
-17.Extra_defocus_for_3D_reconstruction_in_Angstroms_(0_activates_CTF-CT_mode): 10.0
-18.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
-19.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
-20.Inverse_3D_Laplacian_mode:_not_apply(0)_or_apply(1): 0
-21.Regularization_parameter_for_inverse_3D_Laplacian_filter: 0.0
-22.Low-pass_filter_width_in_Angstroms,_background_subtraction_value_and_lower_threshold_level_in_Volts: 0.0 0.0 -1000000.0
-23.Reprojection_of_3D_potential:_not_apply(0)_or_apply(1): 0
-24.Slice_thickness_for_multislice_in_Angstroms: 1.25
-25.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
-26.Cube_side_length_for_peak_localization_in_Angstroms: 1.8
-27.File_name_base_of_3D_potential_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\Out\out.grd
-28.Import_and_reprocess_existing_3D_potential_files:_No(0)_or_Yes(1): 0
-29.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
-30.Number_of_parallel_threads: 20
+ 
+13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_conventional_CTF_correction(5): 3
+14.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
+15.Maximal_number_of_iterations(IWFR): 200
+16.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2,vCTF,cCTF)_or_multiplicative_factor(-0.5LogAmp): 0
+17.Output_defocus_distances_min_and_max_in_Angstroms: -116.0 116.0
+18.Extra_defocus_for_3D_reconstruction_in_Angstroms: 10.0
+19.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
+20.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
+21.Inverse_3D_Laplacian_mode:_not_apply(0)_or_apply(1): 0
+22.Regularization_parameter_for_inverse_3D_Laplacian_filter: 0.0
+23.Low-pass_filter_width_in_Angstroms,_background_subtraction_value_and_lower_threshold_level_in_Volts: 0.0 0.0 -1000000.0
+24.Reprojection_of_3D_potential:_not_apply(0)_or_apply(1): 0
+25.Slice_thickness_for_multislice_in_Angstroms: 1.25
+26.Peak_localization_mode:_not_apply(0)_or_apply(1): 0
+27.Transverse_and_longitudinal_side_lengths_for_peak_localization_in_Angstroms: 0.8 3.2
+28.File_name_base_of_3D_potential_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\Out\out.grd
+29.Import_and_reprocess_existing_3D_potential_files:_No(0)_or_Yes(1): 0
+30.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
+31.Number_of_parallel_threads: 20
 //*****
 //Wavelength_in_Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
 //*****!!!Don't forget to save this file after editing the parameters
-//!!! new CTF-CT reconstruction is initialized when parameter 17 is equal to zero and parameter 12 is equal to 2
-//!!! conventional CTF-CT reconstruction is initialized when parameter 17 is equal to zero and parameter 12 is NOT equal to 2

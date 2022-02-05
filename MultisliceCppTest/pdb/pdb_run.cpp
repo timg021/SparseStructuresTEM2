@@ -152,7 +152,23 @@ int main(int argc, char* argv[])
 	double sinanglez2 = sin(anglez2);
 
 	// line 8
-	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //8th parameter: maximum distance to remove duplicates
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 8th parameter: apply the miniball centre and diameter
+	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
+	{
+		printf("\n!!!Error reading the centre in the miniball option from input parameter file.");
+		return -1;
+	}
+	int nApplyMiniball = 0; // 0 - do not shift the structure, 1 - shift the structure to centre it in the miniball
+	nApplyMiniball = atoi(cparam);
+	switch (nApplyMiniball)
+	{
+	case 0: printf("\nThe structure will not be shifted."); break;
+	case 1: printf("\nThe structure will be shifted to centre it in the determined minimal containing ball."); break;
+	default: printf("\n!!!Unknown value for the centring in the miniball option in the input parameter file."); return -1;
+	}
+
+	// line 9
+	fgets(cline, 1024, ffpar); strtok(cline, "\n");  //9th parameter: maximum distance to remove duplicates
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading maximum distance to remove duplicates from input parameter file.");
@@ -165,8 +181,8 @@ int main(int argc, char* argv[])
 	else printf("\nNo checks of the inter-atomic distance will be applied.");
 	double dupdist2 = dupdist * dupdist;
 
-	// line 9
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 9th parameter: output data sort
+	// line 10
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 10th parameter: output data sort
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading output data sort type from input parameter file.");
@@ -182,8 +198,8 @@ int main(int argc, char* argv[])
 	default: printf("\n!!!Unknown output data sort type in the input parameter file."); return -1;
 	}
 
-	// line 10
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 10th parameter: output file name
+	// line 11
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 11th parameter: output file name
 	if (sscanf(cline, "%s %s", ctitle, outfile) != 2)
 	{
 		printf("\n!!!Error reading output file name from input parameter file.");
@@ -191,8 +207,8 @@ int main(int argc, char* argv[])
 	}
 	printf("\nThe output file name = %s.", outfile);
 
-	// line 11
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 11th parameter: output file type
+	// line 12
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 12th parameter: output file type
 	if (sscanf(cline, "%s %s", ctitle, cparam) != 2)
 	{
 		printf("\n!!!Error reading output file type from input parameter file.");
@@ -208,8 +224,8 @@ int main(int argc, char* argv[])
 	default: printf("\n!!!Unknown output file type in input parameter file."); return -1;
 	}
 
-	// line 12
-	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 12th parameter: free form first line for the output file
+	// line 13
+	fgets(cline, 1024, ffpar); strtok(cline, "\n"); // 13th parameter: free form first line for the output file
 	if (sscanf(cline, "%s %s", ctitle, cfileinfo) != 2)
 	{
 		printf("\n!!!Error reading free-form line for the output file from input parameter file.");
@@ -357,8 +373,17 @@ int main(int argc, char* argv[])
 
 	if (ctblength < diam)
 	{
-		ctblength = diam;
-		printf("\n!!! Enclosing_cube_side_length parameter in the input parameter file was too small and has been replaced with %g.", diam);
+		if (nApplyMiniball)
+		{
+
+			ctblength = diam;
+			printf("\n!!! Enclosing_cube_side_length parameter in the input parameter file was too small and has been replaced with %g.", diam);
+		}
+		else
+		{
+			printf("\n!!!Error: enclosing_cube_side_length parameter in the input parameter file is smaller than the diameter of the minimum ball enclosing the structure.");
+			return -1;
+		}
 	}
 
 	xsize = ysize = zsize = ctblength;
@@ -367,12 +392,21 @@ int main(int argc, char* argv[])
 	double yc = 0.5 * ctblength;
 	double zc = 0.5 * ctblength;
 
-	double xshift = xc - xc0;
-	double yshift = yc - yc0;
-	double zshift = zc - zc0;
-
-	printf("\nThe structure will be shifted into the enclosing cube with side length %g and positive coordinates.", ctblength);
-	printf("\nThe new centre of the minimal ball containing the structure will be located at the point x = %g, y = %g, z = %g.\n", xc, yc, zc);
+	double xshift(0.0), yshift(0.0), zshift(0.0);
+	if (nApplyMiniball)
+	{
+		xshift = xc - xc0;
+		yshift = yc - yc0;
+		zshift = zc - zc0;
+		printf("\nThe structure will be shifted into the enclosing cube with side length %g and positive coordinates.", ctblength);
+		printf("\nThe new centre of the minimal ball containing the structure will be located at the point x = %g, y = %g, z = %g.\n", xc, yc, zc);
+	}
+	else
+	{
+		printf("\nThe structure will NOT be shifted.");
+		printf("\nThe enclosing cube has the side length %g.", ctblength);
+		printf("\nThe centre of rotation is x = %g, y = %g, z = %g.\n", xc, yc, zc);
+	}
 
 	// center and rotate the molecule
 	double xk, yk, zk;
@@ -569,7 +603,7 @@ int main(int argc, char* argv[])
 		fprintf(ff, "%f %f %f\n", xsize, ysize, zsize); // if npositive == 1, ctblength is written as the unit cell dimension
 		for (i = 0; i < pd1.natoms; i++)
 		{
-			if (pd1.adata[i].occupancy <= 1.e-7 || pd1.adata[i].occupancy > 1) pd1.adata[i].occupancy = 1.0;
+			//if (pd1.adata[i].occupancy <= 1.e-7 || pd1.adata[i].occupancy > 1) pd1.adata[i].occupancy = 1.0;
 			fprintf(ff, "%d %f %f %f %f\n", ia1[i], pd1.adata[i].x, pd1.adata[i].y, pd1.adata[i].z, pd1.adata[i].occupancy);
 		}
 		fprintf(ff, "%i\n\n\n", -1);

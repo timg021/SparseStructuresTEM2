@@ -56,6 +56,7 @@ Here is a typical example of a valid Pdb.txt parameter file.
 5.Desired_rotation_angle_around_z_axis_in_degrees: 30.0
 6.Desired_rotation_angle_around_y'_axis_in_degrees: 60.0
 7.Desired_rotation_angle_around_z"_axis_in_degrees: -45.0
+8.Centre_structure_in_the_miniball_(1)_or_do_not_shift_(0): 1
 8.Maximum_distance_in_Angstroms_to_remove_duplicates: 0.5
 9.Sort_0=no_sort_1=increasing_z_2=decreasing_occupancy: 0
 10.Output_file_name: ASP_NEW_Vesta.xyz
@@ -70,11 +71,12 @@ Here is a typical example of a valid Pdb.txt parameter file.
 //5th parameter contains the desired rotation angle around z axis in degrees
 //6th parameter contains the desired rotation angle around y' axis in degrees (y' is the y axis after the initial rotation around the z axis)
 //7th parameter contains the desired rotation angle around z" axis in degrees (z" is the z axis after the initial rotations around the z and y' axes)
-//8th parameter: maximum distance (in Angstroms) between two atoms to be considered "duplicates" and remove all but one; if this distance is negative, no action will be taken
-//9th parameter: sort output: 0=no_sort, 1=sort_by_z_coordinates_ascending 2=sort_by_occupancy_column_values_descending (sorting according to atomic numbers is always done)
-//10th parameter contains output file name
-//11th parameter: 0 - muSTEM-format XTL file, 1 - Vesta XYZ file, 2 -  Kirkland-format XYZ file
-//12th parameter contains the free-form info line that will be recorded into the first line of the output file
+//8th parameter: 1 = shift the structure so that to centre it in the determined minimal containing ball, 0 = do not shift the structure
+//9th parameter: maximum distance (in Angstroms) between two atoms to be considered "duplicates" and remove all but one; if this distance is negative, no action will be taken
+//10th parameter: sort output: 0=no_sort, 1=sort_by_z_coordinates_ascending 2=sort_by_occupancy_column_values_descending (sorting according to atomic numbers is always done)
+//11th parameter contains output file name
+//12th parameter: 0 - muSTEM-format XTL file, 1 - Vesta XYZ file, 2 -  Kirkland-format XYZ file
+//13th parameter contains the free-form info line that will be recorded into the first line of the output file
 
 // This program reads a PDB, Vesta XYZ, Kirkland XYZ file or a text file with orientations/defocuses, 
 // centers the position of the "molecule" within the "enclosing cube" [0, ctblength] x [0, ctblength] x [0, ctblength],
@@ -173,25 +175,32 @@ the initial rotations around the z and y' axes). The rotation of the whole struc
 optionally added carbon support layer) is carried out after the centering of the structure and after the initial
 rotation around the z and y' axes.
 
-Parameter 8 defines the maximum distance (in Angstroms) between two atoms to be considered "duplicates". Such duplicates
+Parameter 8 determines if the structure is shifted so that it would be centred in the determined minimal containing
+ball (which contains the structure for any 3D rotation with the rotation centre at the centre of the miniball). If 
+parameter 8 is equal to 1, the structure may be shifted so that it is centred in the minimal containing ball, and
+the size of the containing cube may be increased as needed to contain the miniball. If parameter 8 is equal to 0, the 
+structure is not shifted and, it the containing cube is not large enough to enclose the minimall ball, an error is 
+displayed and the program is interrupted.
+
+Parameter 9 defines the maximum distance (in Angstroms) between two atoms to be considered "duplicates". Such duplicates
 are removed from the structure before it is written to the output file (only one atom is retained from each group of
 atoms located closer than this distance to a given atom). If this distance is negative, no action will be taken.
 
-Parameter 9 can be equal to 0, 1 or 2.
+Parameter 10 can be equal to 0, 1 or 2.
 "0" corresponds to sorting of atoms in the output file according to the decreasing atomic numbers.
 "1" corresponds to sorting of atoms in the output file according to the increasing z coordinates.
 "2" corresponds to sorting of atoms in the output file according to the increasing values in the occupancy column.
 
-Parameter 10 contains the name of the output file.
+Parameter 11 contains the name of the output file.
 
-Parameter 11 can be equal to 0, 1 or 2.
+Parameter 12 can be equal to 0, 1 or 2.
 "0" corresponds to muSTEM XTL output file format (http://tcmp.ph.unimelb.edu.au/mustem/dist/muSTEM_v5.0_manual.pdf). 
 "1" corresponds to Vesta XYZ file output format.
 "2" corresponds to Kirkland XYZ output file format.
 Note that the optional column with RMS amplitudes of atomic vibrations is not written out. It can be added later
 e.g. by editing the output file in Excel.
 
-Parameter 12 contains a free-form information line (with no white spaces) that is written in the muSTEM, Vesta and Kirkland XYZ file formats.
+Parameter 13 contains a free-form information line (with no white spaces) that is written in the muSTEM, Vesta and Kirkland XYZ file formats.
 
 ================================================================================================== 
 Example of a valid XYZ file in Kirkland's XYZ format (see detailed description in the 

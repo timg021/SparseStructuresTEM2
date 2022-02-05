@@ -156,14 +156,12 @@ void Fftwd3drc::InverseMLaplacian(xar::XArray3D<double>& xa3, double alpha)
 	// inverse FFT of the product
 	InverseFFT();
 	GetRealXArray3D(xa3);
-
-	// restore L1 norm
-	//xa3 *= dnorm1 / xa3.Norm(xar::eNormL1);
 }
 
 
 void Fftwd3drc::GaussFilter(xar::XArray3D<double>& xa3, double sigma)
 // Convolution with a 3D Gaussian with the standard deviation equal to sigma
+// !!! NOTE that this filter preserves the average pixel value
 {
 	if (nz != xa3.GetDim1() || ny != xa3.GetDim2() || nx != xa3.GetDim3())
 		throw std::runtime_error("Error: input XArray3D in GaussFilter() has wrong dimensions.");
@@ -177,8 +175,7 @@ void Fftwd3drc::GaussFilter(xar::XArray3D<double>& xa3, double sigma)
 	double zlo = ph3->GetZlo();
 	double zhi = ph3->GetZhi();
 
-	double dnorm1 = xa3.Norm(xar::eNormL1);
-	if (dnorm1 == 0.0) return;
+	double dnormA = xa3.Norm(xar::eNormAver);
 
 	// FFT of input array
 	SetRealXArray3D(xa3);
@@ -216,6 +213,6 @@ void Fftwd3drc::GaussFilter(xar::XArray3D<double>& xa3, double sigma)
 	InverseFFT();
 	GetRealXArray3D(xa3);
 
-	// restore L1 norm
-	xa3 *= dnorm1 / xa3.Norm(xar::eNormL1);
+	// restore average value
+	xa3 += (dnormA - xa3.Norm(xar::eNormAver));
 }

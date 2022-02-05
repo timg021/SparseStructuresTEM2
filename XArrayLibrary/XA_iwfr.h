@@ -94,13 +94,15 @@ namespace xar
 		//! Retrieves complex wave function from a vector of defocused images
 		void Iwfr(vector<XArray2D<T> >& vint0, XArray2D<std::complex<T> >& campOut, vector<double> vdefocusdist, double zmiddle, double k2maxo, double Cs3, double Cs5, int kmax, double epsilon, bool bVerboseOutput);
 		//! Retrieves phase from several defocused images using L2 minimization of the CTF function
-		XArray2D<T> CTFL2(vector<XArray2D<T> >& vint0, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double& alpha);
+		XArray2D<T> CTFL2(vector<XArray2D<T> >& vint0, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double alpha);
 		//! Returns the conjugated phase retrieved from a single defocused image: -phase = -0.5 * NF * (Intensity / I0 - 1)
 		XArray2D<T> Min05LogAmp(const XArray2D<T>& intIn, double NF = 1.0);
 		//! Returns the conjugated phase retrieved from a single defocused image: -phase = -NF^(-1) + sqrt[NF^(-2) + (Intensity / I0) - 1]
 		XArray2D<T> ConjPhaseGausBeam(const XArray2D<T>& intIn, double NF = 1.0);
-		//! Inverts CTF for a pure phase object
-		void InvertPhaseCTF(XArray2D<T>& int0, double defocusdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double& alpha);
+		//! Inverts CTF for a pure phase or homogeneous object
+		void InvertPhaseCTF(XArray2D<T>& int0, double defocusdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha);
+		//! Calculates CTF-based free-space propagation for a pure phase object
+		void ForwardPhaseCTF(XArray2D<T>& pha0, double defocusdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5);
 
 	// Overridables
 	public:
@@ -250,13 +252,13 @@ template <class T> void XA_IWFR<T>::Iwfr(vector< XArray2D<T> >& vint0, XArray2D<
 // q2max - maximum Fourier frequency (bandpass)
 // Cs3 - third spherical aberration
 // Cs5 - fifth spherical aberration
-// alpha - Tikhonov regularization parameter, on exit it is replaced by 0.1 times the minimal non-zero CTF^4 (as in the denominator of eq.(A6) of paper D. PAGANIN et al, J.Micros. 214 (2004) 51-61)
+// alpha - Tikhonov regularization parameter (as in the denominator of eq.(A6) of paper D. PAGANIN et al, J.Micros. 214 (2004) 51-61)
 // returns output phase in the plane vdefocusdist[0]
 //
 // NOTE: if alpha<=0 is given in the function call, we actually use alpha = 0.1 times the minimal non-zero CTF^4 - see code below.
 // NOTE: it could be useful later to implement a modified version of this algorithm, where the phase is not simply retrieved at defocus[0], which is highly dependent on the image[0], 
 // but instead it would be retrieved at each defocus[n], and then the complex amplitude would be averaged, e.g. at the middle plane, as in IWFR
-template <class T> XArray2D<T> XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double& alpha)
+template <class T> XArray2D<T> XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, vector<double> vdefocusdist, double q2max, double Cs3, double Cs5, double alpha)
 {
 	bool bAper(q2max > 0);
 	int ndefocus = (int)vint0.size();
@@ -347,8 +349,8 @@ template <class T> XArray2D<T> XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, ve
 		fac2[n] = PI * wl * dblDistance[n];
 		if (abs(fac2[n]) < fac2min) fac2min = abs(fac2[n]);
 	}
-	double alphaNew = 0.1 * pow(fac2min * std::min(dcsi2, deta2), 4);
-	if (alpha <= 0) alpha = alphaNew;
+
+	if (alpha <= 0) alpha = 0.1 * pow(fac2min * std::min(dcsi2, deta2), 4);
 
 	double fac3 = PI * pow(wl, 3) / 2.0 * Cs3;
 	double fac5 = PI * pow(wl, 5) / 3.0 * Cs5;
@@ -481,7 +483,6 @@ template <class T> XArray2D<T> XA_IWFR<T>::CTFL2(vector<XArray2D<T> >& vint0, ve
 			}
 		}
 	}
-	alpha = alphaNew; // pass the information about the smallest possible non-zero squared squared CTF value back to the calling program in order to optionally adjust alpha next time
 
 	//********* inverse Fourier transforming
 	fft.Complex2D((std::complex<T> *) fiC, ny, nx, OouraFft<T>::eDirInv);
@@ -536,7 +537,7 @@ template <class T> XArray2D<T> XA_IWFR<T>::ConjPhaseGausBeam(const XArray2D<T>& 
 }
 
 
-//! Inverts CTF for a pure phase object
+//! Inverts CTF for a pure phase or homogeneous object
 // int0 - input defocused image
 // defocdist - defocus distance
 // Z1mZ2d2 astigmatism parameter(dblDistanceX - dblDistanceY) / 2 (in the same units as used in the Wavehead2D)
@@ -544,13 +545,14 @@ template <class T> XArray2D<T> XA_IWFR<T>::ConjPhaseGausBeam(const XArray2D<T>& 
 // q2max - maximum Fourier frequency (bandpass)
 // Cs3 - third spherical aberration
 // Cs5 - fifth spherical aberration
-// alpha - Tikhonov regularization parameter, on exit it is replaced by 0.1 times the minimal non-zero CTF^4 (as in the denominator of eq.(A6) of paper D. PAGANIN et al, J.Micros. 214 (2004) 51-61)
+// sigma - beta to delta ratio (1 / gamma), it is equal to zero for pure phase objects
+// alpha - Tikhonov regularization parameter
 // The retrieved output phase in the plane -defocdist from the image plane replaces the input image
 //
 // NOTE: if alpha<=0 is given in the function call, we actually use alpha = 0.1 times the minimal non-zero CTF^4 - see code below.
-template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double& alpha)
+template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5, double sigma, double alpha)
 {
-	if (defocdist == 0) throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertPhaseCTF() (propagation distance cannot be zero in this phase-contrast method)");
+	//if (defocdist == 0) throw std::invalid_argument("invalid_argument in XA_IWFR<T>::InvertPhaseCTF() (propagation distance cannot be zero in this phase-contrast method)");
 
 	bool bAper(q2max > 0);
 
@@ -589,6 +591,9 @@ template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double def
 	double xst2 = xst * xst;
 	double yst2 = yst * yst;
 
+	double omega = atan(sigma);
+	double cosomega = 1.0 / sqrt(1.0 + sigma * sigma);
+
 	// subtract 1 from defocused image, divide by 2 and complexify for FFT (should change the code to use real FFT at a later time!)
 	XArray2D<std::complex<T> > camp;
 	int0 -= int0.Norm(eNormAver);
@@ -614,8 +619,7 @@ template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double def
 	double deta2 = 1.0 / yap2;
 
 	double fac2 = PI * wl * defocdist;
-	double alphaNew = 0.1 * pow(abs(fac2) * std::min(dcsi2, deta2), 2);
-	if (alpha <= 0) alpha = alphaNew;
+	if (alpha <= 0) alpha = 0.1 * pow(abs(fac2) * std::min(dcsi2, deta2), 2);
 
 	double Z1 = defocdist + Z1mZ2d2;
 	double Z2 = defocdist - Z1mZ2d2;
@@ -639,7 +643,7 @@ template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double def
 		kj = nxy2 + nx2 * i + nx2;
 		etafacxy = facxy * double(i);
 		eta2 = deta2 * i * i;
-		eta2fac2y = eta2 * fac2y;
+		eta2fac2y = eta2 * fac2y + omega;
 		for (long j = -long(nxd2); j < 0; j++)
 		{
 			k = kj + 2 * j;
@@ -691,7 +695,7 @@ template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double def
 		kj = nx2 * i + nx2;
 		etafacxy = facxy * double(i);
 		eta2 = deta2 * i * i;
-		eta2fac2y = eta2 * fac2y;
+		eta2fac2y = eta2 * fac2y + omega;
 		for (long j = -long(nxd2); j < 0; j++)
 		{
 			k = kj + 2 * j;
@@ -739,13 +743,206 @@ template <class T> void XA_IWFR<T>::InvertPhaseCTF(XArray2D<T>& int0, double def
 			}
 		}
 	}
-	alpha = alphaNew; // pass the information about the smallest possible non-zero squared squared CTF value back to the calling program in order to optionally adjust alpha next time
+
+	//********* inverse Fourier transforming
+	fft.Complex2D((std::complex<T> *) u, ny, nx, OouraFft<T>::eDirInv);
+	T fact = T(cosomega / nxy);
+	for (k = 0; k < nxy2; k++)	u[k] *= fact;
+	int0 = Re(camp);
+}
+
+//! Calculates CTF-based free-space propagation for a pure phase object
+// pha0 - input defocused image
+// defocdist - defocus distance
+// Z1mZ2d2 astigmatism parameter(dblDistanceX - dblDistanceY) / 2 (in the same units as used in the Wavehead2D)
+// phiA astigmatism angle(with the X axis, counterclockwise) (in radians)
+// q2max - maximum Fourier frequency (bandpass)
+// Cs3 - third spherical aberration
+// Cs5 - fifth spherical aberration
+// The propagated intensity in the plane defocdist from the object plane replaces the input phase
+//
+template <class T> void XA_IWFR<T>::ForwardPhaseCTF(XArray2D<T>& pha0, double defocdist, double Z1mZ2d2, double phiA, double q2max, double Cs3, double Cs5)
+{
+	bool bAper(q2max > 0);
+
+	std::unique_ptr<IXAHead> pHead(nullptr);
+	pHead.reset(pha0.GetHeadPtr()->Clone());
+	IXAHWave2D* ph2 = GetIXAHWave2D(pha0);
+	ph2->Validate();
+	index_t ny = pha0.GetDim1();
+	index_t nx = pha0.GetDim2();
+
+	index_t i = 2;
+	while (i < ny) i *= 2;
+	if (i != ny) throw std::invalid_argument("invalid_argument in XA_IWFR<T>::ForwardPhaseCTF() (m_dim1 is not a power of 2)");
+	index_t j = 2;
+	while (j < nx) j *= 2;
+	if (j != nx) throw std::invalid_argument("invalid_argument in XA_IWFR<T>::ForwardPhaseCTF() (m_dim2 is not a power of 2)");
+
+	index_t nxd2 = nx / 2;
+	index_t nyd2 = ny / 2;
+	index_t nx2 = nx * 2;
+	index_t ny2 = ny * 2;
+	index_t nxy = nx * ny;
+	index_t nxy2 = nxy * 2;
+
+	double wl = ph2->GetWl();
+	double xlo = ph2->GetXlo();
+	double xhi = ph2->GetXhi();
+	double xst = ph2->GetXStep(nx);
+	double ylo = ph2->GetYlo();
+	double yhi = ph2->GetYhi();
+	double yst = ph2->GetYStep(ny);
+	double xap = abs(xhi - xlo);
+	double xap2 = (xhi - xlo) * (xhi - xlo);
+	double yap = abs(yhi - ylo);
+	double yap2 = (yhi - ylo) * (yhi - ylo);
+	double xst2 = xst * xst;
+	double yst2 = yst * yst;
+
+	// complexify input phase for FFT (should change the code to use real FFT at a later time!)
+	XArray2D<std::complex<T> > camp;
+	MakeComplex(pha0, T(0), camp, false);
+
+	//  Nyquist frequency (spectral radius) of U0 = srad*wl
+	double srad = sqrt(0.25 / xst2 + 0.25 / yst2);
+	if (srad * wl > 1.0)
+		throw std::runtime_error("runtime_error in XA_IWFR<T>::ForwardPhaseCTF() (evanescent waves present)");
+
+	//********* Fourier transforming initial amplitude u_n(i,j)
+	T* u(0);
+	OouraFft<T> fft;
+	u = reinterpret_cast<T*>(&(camp.front()));
+	fft.Complex2D((std::complex<T> *) u, ny, nx, OouraFft<T>::eDirFwd);
+
+	//********* Multiply F[u] by the CTF
+	bool bC35((Cs3 != 0) || (Cs5 != 0));
+	double dcsi = 1.0 / xap;
+	double dcsi2 = 1.0 / xap2;
+	double deta = 1.0 / yap;
+	double deta2 = 1.0 / yap2;
+
+	double fac2 = PI * wl * defocdist;
+	double Z1 = defocdist + Z1mZ2d2;
+	double Z2 = defocdist - Z1mZ2d2;
+	double cosphiA = cos(phiA);
+	double sinphiA = sin(phiA);
+	double sin2phiA = 2.0 * sinphiA * cosphiA;
+	double fac2x = PI * wl * (Z1 * cosphiA * cosphiA + Z2 * sinphiA * sinphiA);
+	double fac2y = PI * wl * (Z2 * cosphiA * cosphiA + Z1 * sinphiA * sinphiA);
+	double facxy = PI * wl * Z1mZ2d2 * sin2phiA;
+	facxy = facxy * deta * dcsi;
+	double fac3 = PI * pow(wl, 3) / 2.0 * Cs3;
+	double fac5 = PI * pow(wl, 5) / 3.0 * Cs5;
+
+	index_t k, kj;
+	double eta2, csi2, q2;
+	double etafacxy, eta2fac2y, fac2a, Cstemp(0);
+	T temp;
+
+	for (long i = -long(nyd2); i < 0; i++)
+	{
+		kj = nxy2 + nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y;
+		for (long j = -long(nxd2); j < 0; j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				temp = (T)sin(fac2a + Cstemp);
+				u[k] *= temp;
+				u[k + 1] *= temp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+		kj = nxy2 + nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				temp = (T)sin(fac2a + Cstemp);
+				u[k] *= temp;
+				u[k + 1] *= temp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+	}
+	for (long i = 0; i < long(nyd2); i++)
+	{
+		kj = nx2 * i + nx2;
+		etafacxy = facxy * double(i);
+		eta2 = deta2 * i * i;
+		eta2fac2y = eta2 * fac2y;
+		for (long j = -long(nxd2); j < 0; j++)
+		{
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				temp = (T)sin(fac2a + Cstemp);
+				u[k] *= temp;
+				u[k + 1] *= temp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+		kj = nx2 * i;
+		for (long j = 0; j < long(nxd2); j++)
+		{
+			k = kj + 2 * j;
+			k = kj + 2 * j;
+			csi2 = dcsi2 * j * j;
+			fac2a = eta2fac2y + csi2 * fac2x + etafacxy * double(j);
+			q2 = csi2 + eta2;
+			if (!bAper || q2 < q2max)
+			{
+				if (bC35) Cstemp = fac3 * q2 * q2 + fac5 * pow(q2, 3);
+				temp = (T)sin(fac2a + Cstemp);
+				u[k] *= temp;
+				u[k + 1] *= temp;
+			}
+			else
+			{
+				u[k] = T(0);
+				u[k + 1] = T(0);
+			}
+		}
+	}
 
 	//********* inverse Fourier transforming
 	fft.Complex2D((std::complex<T> *) u, ny, nx, OouraFft<T>::eDirInv);
 	T fact = T(1.0) / nxy;
 	for (k = 0; k < nxy2; k++)	u[k] *= fact;
-	int0 = Re(camp);
+	pha0 = Re(camp);
+
+	//********* finally, multiply by 2 and add 1 (assuming that I_in = 1)
+	pha0 *= T(2.0);
+	pha0 += T(1.0);
 }
 
 } // namespace xar closed

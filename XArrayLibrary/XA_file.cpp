@@ -400,7 +400,7 @@ index_t xar::FindRefractiveIndices(const string strMaterialLegendFilename, const
 	index_t nMaterials = 0;
 	for (;;) 	// first, count the number of rows in the file
 	{ 
-		if (fgets(buf, 2048, fp) <= 0)
+		if (fgets(buf, 2048, fp) == 0)
 			break;
 		else
 		{
@@ -438,7 +438,7 @@ index_t xar::FindRefractiveIndices(const string strMaterialLegendFilename, const
 		index_t iSize = 0;
 		for (;;) 
 		{ 
-			if (fgets(buf, 2048, fp1) <= 0)
+			if (fgets(buf, 2048, fp1) == 0)
 				break;
 			else
 			{
@@ -497,7 +497,7 @@ index_t xar::ReadSpectrumFile(const string strSpectrumFilename, vector<float>& v
 	index_t nEnergies = 0;
 	for (;;)
 	{ 
-		if (fgets(buf, 2048, fp) <= 0)
+		if (fgets(buf, 2048, fp) == 0)
 			break;
 		else
 		{

@@ -248,11 +248,17 @@ int main(int argc, char* argv[])
 		Cs3 *= 1.e+7; // mm --> Angstroms
 		Cs5 *= 1.e+7; // mm --> Angstroms
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 12.Phase retrieval method: 1 = IWFR, 2 = CTFL2, 3 = Mi05LogAmp, 4 = ConjPhaseGausBeam
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 12. Absorption coefficient (fraction of the real part)
+		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading absorptioin coefficient from input parameter file.");
+		double asigma = atof(cparam);
+		printf("\nAbsorption coefficient (fraction of the real part) = %g", asigma);
+		if (asigma < -1 || asigma > 1) printf("\n\n!!WARNING: absorption coefficient is expected to be between -1 and 1 (inclusive).");
+
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13.Phase retrieval method: 1 = IWFR, 2 = CTFL2, 3 = Min05LogAmp, 4 = vCTF , 5 = conventional-CTF (cCTF)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading phase retrieval method from input parameter file.");
 		int nPhaseRetrieval = atoi(cparam);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 13. Save or not phase phase-retrieved defocused complex amplitudes in files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14. Save or not phase phase-retrieved defocused complex amplitudes in files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading save_or_not phase-retrieved defocused complex amplitudes switch from input parameter file.");
 		int nSaveDefocCAmps = atoi(cparam);
 		if (nSaveDefocCAmps == 1)
@@ -262,35 +268,35 @@ int main(int argc, char* argv[])
 		else
 			throw std::runtime_error("Error: save_or_not phase-retrieved defocused complex amplitudes switch must be 0 or 1.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 14. Maximal number of IWFR iterations
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 15. Maximal number of IWFR iterations
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading maximal number of iterations from input parameter file.");
 		int itermax = atoi(cparam);
 		printf("\nMaximal number of iterations = %d", itermax);
 		if (itermax < 1)
 			throw std::runtime_error("Error: the maximal number of iterations should be >= 1.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 15. Minimal phase reconstruction error(IWFR), Tikhonov regularization parameter alpha(CTFL2) or multiplicative factor (Min05LogAmp)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 16. Minimal phase reconstruction error(IWFR), Tikhonov regularization parameter alpha(CTFL2, vCTF, cCTF) or multiplicative factor (Min05LogAmp)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading minimal phase reconstruction error/regulariztion parameter from input parameter file.");
 		double epsilon = atof(cparam);
-		printf("\nMinimal phase reconstruciton error (IWFR), Tikhonov regularization parameter (CTFL2) or multiplicative factor (Min05LogAmp, ConjPhaseGausBeam) = %g", epsilon);
+		printf("\nMinimal phase reconstruciton error (IWFR), Tikhonov regularization parameter (CTFL2, vCTF, cCTF) or multiplicative factor (Min05LogAmp) = %g", epsilon);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 16. Output defocus distances min and max in Angstroms
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Output defocus distances min and max in Angstroms
 		if (sscanf(cline, "%s %s %s", ctitle, cparam, cparam1) != 3) throw std::runtime_error("Error reading output defocus distances from input parameter file.");
 		double zlo = atof(cparam); // minimum output defocus in Angstroms - !!! will be corrected with dzextra below
 		double zhi = atof(cparam1); // maximum output defocus in Angstroms - !!! will be corrected with dzextra below 
 		double zst = xst; // this is a provision for possible future extensions to non-qubic voxels
 		if (zlo > zhi) std::swap(zlo, zhi);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 17. Extra defocus for 3D reconstruction in Angstroms (0 activates conventional CT mode)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 18. Extra defocus for 3D reconstruction in Angstroms (0 activates conventional CT mode)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading extra defocus for 3D reconstruction parameter from input parameter file.");
 		double dzextra = atof(cparam);
 		printf("\nExtra defocus for 3D reconstruction = %g (Angstroms)", dzextra);
-		bool bCTF_CT(false);
 		if (dzextra == 0)
 		{
-			bCTF_CT = true;
-			printf("\n!!WARNING: extra defocus = 0, conventional phase CT with CTF correction will be used.");
+			if (nPhaseRetrieval <= 3) printf("\n\n!!WARNING: extra defocus = 0, which is unusual for the selected phase retrieval method.");
 		}
+		else
+			if (nPhaseRetrieval == 4) printf("\n\n!!WARNING: extra defocus != 0, which is unusual for the vCTF-CT method.");
 		double zlodz(zlo), zhidz(zhi);
 		zlodz += dzextra; zhidz += dzextra;
 
@@ -302,7 +308,7 @@ int main(int argc, char* argv[])
 		vector<double> voutdefocus(noutdefocus); // vector of output defocus distances
 		for (index_t n = 0; n < noutdefocus; n++) voutdefocus[n] = zlodz + zst * n;
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); //18. Enforce symmetry: not_apply(0), post-apply(1), or distribute input orientations(2)
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); //19. Enforce symmetry: not_apply(0), post-apply(1), or distribute input orientations(2)
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading enforcing symmetry mode from input parameter file.");
 		int imodeSymmetry = atoi(cparam);
 		switch (imodeSymmetry)
@@ -320,7 +326,7 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: unknown value for symmetry enforcing mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 19.Input file with rotation angles enforcing symmetry
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 20.Input file with rotation angles enforcing symmetry
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading file name with rotation angles enforcing symmetry from input parameter file.");
 		index_t nanglesSym{ 1 }, nanglesIn1Sym{ nangles };
 		vector<Pair> v2anglesSym;
@@ -342,7 +348,7 @@ int main(int argc, char* argv[])
 				if (!string(cparam).empty())
 					throw std::runtime_error("Error: filename extension for a file with rotation angles for enforcing symmetry must be .txt or the parameter should be empty.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 20. 3D Laplacian filter mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 21. 3D Laplacian filter mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading 3D Laplacian filter mode from input parameter file.");
 		int imodeInvLaplace = atoi(cparam);
 		switch (imodeInvLaplace)
@@ -357,14 +363,14 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: unknown value for 3D Laplacian filter mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 21. Regularization parameter for inverse 3D Laplacian
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 22. Regularization parameter for inverse 3D Laplacian
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading regularization parameter for inverse 3D Laplacian from input parameter file.");
 		double alpha = atof(cparam);
 		printf("\nRegularization parameter for inverse 3D Laplacian = %g", alpha);
 		if (imodeInvLaplace && alpha < 0)
 			throw std::runtime_error("Error: regularization parameter for 3D Laplacian filter must be non-negative.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 22. Low-pass filter width in Angstroms, background subtraction value and lower threshold level in Volts
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 23. Low-pass filter width in Angstroms, background subtraction value and lower threshold level in Volts
 		if (sscanf(cline, "%s %s %s %s", ctitle, cparam, cparam1, cparam2) != 4) throw std::runtime_error("Error reading low-pass filter width, background subtraction value and lower threshold level from input parameter file.");
 		double dlpfiltersize = atof(cparam);
 		double dBackground = atof(cparam1);
@@ -373,7 +379,7 @@ int main(int argc, char* argv[])
 		printf("\nBackground subtraction value for 3D potential = %g (Volts)", dBackground);
 		printf("\nLower threshold level for 3D potential = %g (Volts)", dThreshold);
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 23. Multislice reprojection of the 3D electrostatic potential mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 24. Multislice reprojection of the 3D electrostatic potential mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading reprojectin of 3D potential mode from input parameter file.");
 		int imodeReproj = atoi(cparam);
 		switch (imodeReproj)
@@ -388,7 +394,7 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: unknown value for the multislice reprojection mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 24. Slice thickness for multislice reprojection in Angstroms
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 25. Slice thickness for multislice reprojection in Angstroms
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading slice thickness for multislice reprojection from input parameter file.");
 		double sliceTh = atof(cparam);
 		if (imodeReproj != 0)
@@ -401,7 +407,7 @@ int main(int argc, char* argv[])
 		imodeReproj = 1;
 #endif // CORRELATE_FRAMES
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 25. Peak localization mode
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 26. Peak localization mode
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading peak localization mode from input parameter file.");
 		int imodePeaks = atoi(cparam);
 		switch (imodePeaks)
@@ -416,14 +422,14 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("Error: unknown value for the peak localization mode in input parameter file.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 26. Cube side length for peak localization (in_Angstroms)
-		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading cube side length for peak localization from input parameter file.");
-		double datomsize = atof(cparam);
-		printf("\nCube side length for peak localization = %g (Angstroms)", datomsize);
-		if (imodePeaks && int(datomsize / zst + 0.5) < 2)
-			throw std::runtime_error("Error: cubic box side length for peak localization must be 2 x z_step or larger.");
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Transverse and longitudinal side lengths for peak localization (in_Angstroms)
+		if (sscanf(cline, "%s %s %s", ctitle, cparam ,cparam1) != 3) throw std::runtime_error("Error reading transverse and longitudinal side lengths for peak localization from input parameter file.");
+		double datomsizeXY = atof(cparam), datomsizeZ = atof(cparam1);
+		printf("\nTransverse and longitudinal side lengths for peak localization = %g %g (Angstroms)", datomsizeXY, datomsizeZ);
+		if (imodePeaks && (int(datomsizeXY / zst + 0.5) < 2 || int(datomsizeZ / zst + 0.5) < 2))
+			throw std::runtime_error("Error: transverse and longitudinal side lengths for peak localization must be 2 x z_step or larger.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 27. Output file name base in GRD or TIFF format
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 28. Output file name base in GRD or TIFF format
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading output file name base from input parameter file.");
 		string filenamebaseOut = cparam;
 		printf("\nFile name base for 3D potential = %s", filenamebaseOut.c_str());
@@ -435,7 +441,7 @@ int main(int argc, char* argv[])
 		else if (GetFileExtension(filenamebaseOut) == string(".GRD")) bTIFFoutput = false;
 		else throw std::runtime_error("Error: output filename extension must be TIF ot GRD.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 28. Import and reprocess existing 3D_potential files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 29. Import and reprocess existing 3D_potential files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading import and reprocess existing 3D potential files switch from input parameter file.");
 		int imode3DPotential = atoi(cparam);
 #ifdef CORRELATE_FRAMES
@@ -468,7 +474,7 @@ int main(int argc, char* argv[])
 				throw std::runtime_error("Error: minimal phase / regulalization parameter must be non-negative.");
 		}
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 29. Folder name for auxiliary files
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // // 30. Folder name for auxiliary files
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading folder name for auxiliary files from input parameter file.");
 		string folderAux = cparam;
 		printf("\nFolder for auxiliary file output = %s", folderAux.c_str());
@@ -477,7 +483,7 @@ int main(int argc, char* argv[])
 		if (!std::filesystem::exists(folderAux))
 			throw std::runtime_error("Error: the specified auxiliary file folder does not seem to exist.");
 
-		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 30. Number of parallel threads
+		fgets(cline, 1024, ff0); strtok(cline, "\n"); // 31. Number of parallel threads
 		if (sscanf(cline, "%s %s", ctitle, cparam) != 2) throw std::runtime_error("Error reading number of parallel threads from input parameter file.");
 		int nThreads = atoi(cparam);
 #ifdef CORRELATE_FRAMES
@@ -692,6 +698,8 @@ int main(int argc, char* argv[])
 						campOut = MakeComplex(ampRe, ampIm, false);
 					}
 
+					if (nPhaseRetrieval == 4 || nPhaseRetrieval == 5) int0 = xar::Abs2(campOut);
+
 					// optionally save rotated defocused and shifted complex amplitudes in GRC files
 					if (nSaveDefocCAmps == 1)
 						XArData::WriteFileGRC(campOut, voutfilenamesTotDefocCAmp[na].c_str(), eGRCBIN);
@@ -700,12 +708,12 @@ int main(int argc, char* argv[])
 				{
 					if (ndefocus == 1)
 					{
-						if (!(nPhaseRetrieval == 2 && bCTF_CT == true) && nPhaseRetrieval != 3 && nPhaseRetrieval != 4)
+						if (nPhaseRetrieval == 1 || nPhaseRetrieval == 2)
 							throw std::runtime_error("Error: unsuitable phase retrieval method in the input parameter file for the case of single defocus distance.");
 					}
 					else
 					{
-						if (nPhaseRetrieval != 1 && nPhaseRetrieval != 2)
+						if (!(nPhaseRetrieval == 1 || nPhaseRetrieval == 2))
 							throw std::runtime_error("Error: unsuitable phase retrieval method in the input parameter file for the case of multiple defocus distances.");
 					}
 
@@ -764,84 +772,63 @@ int main(int argc, char* argv[])
 					}
 
 					// do phase retrieval
-					if (bCTF_CT) // in CTF-CT mode, reconstruction of the complex amplitude in the defocus plane is not used (CTF correction is applied later)
+					switch (nPhaseRetrieval)
+					{
+					case 1: // IWFR
+					{
+						vector<double> vdefocusdist(ndefocus);
+						for (int n = 0; n < ndefocus; n++) vdefocusdist[n] = vdefocus[n].b;
+						if (bVerboseOutput) printf("\nPerforming IWFR phase retrieval ...");
+						zout = 0.0;
+						for (size_t n = 0; n < ndefocus; n++) zout += vdefocus[n].b;
+						zout /= double(ndefocus);
+						XA_IWFR<double> xa_iwfr;
+						xa_iwfr.Iwfr(vint0, campOut, vdefocusdist, zout, k2maxo, Cs3, Cs5, itermax, epsilon, bVerboseOutput);
+					}
+					break;
+					case 2: // CTFL2
+					{
+						vector<double> vdefocusdist(ndefocus);
+						for (int n = 0; n < ndefocus; n++) vdefocusdist[n] = vdefocus[n].b;
+						if (bVerboseOutput) printf("\nPerforming CTFL2 phase retrieval ...");
+						zout = vdefocus[0].b; //CTFL2 always retrieves the phase in the first defocused plane
+						XA_IWFR<double> xa_iwfr;
+						XArray2D<double> fiOut, ampOut;
+						ampOut = vint0[0]; // use this before the call to xa_iwfr.CTFL2 spoils all vint0 images
+						ampOut ^= 0.5; // preserve the amplitude at the zeros distance for reuse after phase retrieval
+						fiOut = xa_iwfr.CTFL2(vint0, vdefocusdist, k2maxo, Cs3, Cs5, epsilon);
+						MakeComplex(ampOut, fiOut, campOut, true);
+					}
+					break;
+					case 3: // Min05LogAmp
+					{
+						zout = vdefocus[0].b;
+						double zoutSample = zout + 0.5 * (zhidz - zlodz); // we want to take into account the sample thickness here
+						double sigma = (dAtomWidth / 2.355); // std of the Gaussian fit for the potential of one atom
+						double NF = zoutSample != 0 ? tPI * sigma * sigma / (wl * zoutSample) : 1.0;
+						XArray2D<double> fiOut, ampOut;
+						ampOut = vint0[0]; ampOut ^= 0.5;
+						XA_IWFR<double> xa_iwfr;
+						if (bVerboseOutput)
+						{
+							//printf("\nPerforming Fact * {-0.5 * NF * (Intensity / I0 - 1)} phase retrieval ...");
+							printf("\nPerforming Fact * {-0.5 * (Intensity / I0 - 1)} phase retrieval ...");
+							printf("\nFresnel number = %g", NF);
+						}
+						//fiOut = xa_iwfr.Min05LogAmp(vint0[0], epsilon * NF);
+						fiOut = xa_iwfr.Min05LogAmp(vint0[0], epsilon);
+						MakeComplex(ampOut, fiOut, campOut, true);
+					}
+					break;
+					case 4: // vCTF
+					case 5: // cCTF
 					{
 						int0 = vint0[0];
 						zout = vdefocus[0].b;
 					}
-					else // do phase retrieval
-					{
-						switch (nPhaseRetrieval)
-						{
-						case 1:
-						{
-							vector<double> vdefocusdist(ndefocus);
-							for (int n = 0; n < ndefocus; n++) vdefocusdist[n] = vdefocus[n].b;
-							if (bVerboseOutput) printf("\nPerforming IWFR phase retrieval ...");
-							zout = 0.0;
-							for (size_t n = 0; n < ndefocus; n++) zout += vdefocus[n].b;
-							zout /= double(ndefocus);
-							XA_IWFR<double> xa_iwfr;
-							xa_iwfr.Iwfr(vint0, campOut, vdefocusdist, zout, k2maxo, Cs3, Cs5, itermax, epsilon, bVerboseOutput);
-						}
-						break;
-						case 2:
-						{
-							vector<double> vdefocusdist(ndefocus);
-							for (int n = 0; n < ndefocus; n++) vdefocusdist[n] = vdefocus[n].b;
-							if (bVerboseOutput) printf("\nPerforming CTFL2 phase retrieval ...");
-							zout = vdefocus[0].b; //CTFL2 always retrieves the phase in the first defocused plane
-							XA_IWFR<double> xa_iwfr;
-							XArray2D<double> fiOut, ampOut;
-							ampOut = vint0[0]; // use this before the call to xa_iwfr.CTFL2 spoils all vint0 images
-							ampOut ^= 0.5; // preserve the amplitude at the zeros distance for reuse after phase retrieval
-							double alphaCTF2 = epsilon; // alphaCTF2 will be changed by the call to CTFL2()
-							fiOut = xa_iwfr.CTFL2(vint0, vdefocusdist, k2maxo, Cs3, Cs5, alphaCTF2);
-							if (bVerboseOutput) printf("\nMinimal [sum(CTF_n^2)]^2 in denominator = %g", alphaCTF2);
-							MakeComplex(ampOut, fiOut, campOut, true);
-						}
-						break;
-						case 3:
-						{
-							zout = vdefocus[0].b;
-							double zoutSample = zout + 0.5 * (zhidz - zlodz); // we want to take into account the sample thickness here
-							double sigma = (dAtomWidth / 2.355); // std of the Gaussian fit for the potential of one atom
-							double NF = zoutSample != 0 ? tPI * sigma * sigma / (wl * zoutSample) : 1.0;
-							XArray2D<double> fiOut, ampOut;
-							ampOut = vint0[0]; ampOut ^= 0.5;
-							XA_IWFR<double> xa_iwfr;
-							if (bVerboseOutput)
-							{
-								//printf("\nPerforming Fact * {-0.5 * NF * (Intensity / I0 - 1)} phase retrieval ...");
-								printf("\nPerforming Fact * {-0.5 * (Intensity / I0 - 1)} phase retrieval ...");
-								printf("\nFresnel number = %g", NF);
-							}
-							//fiOut = xa_iwfr.Min05LogAmp(vint0[0], epsilon * NF);
-							fiOut = xa_iwfr.Min05LogAmp(vint0[0], epsilon);
-							MakeComplex(ampOut, fiOut, campOut, true);
-						}
-						break;
-						case 4:
-						{
-							zout = vdefocus[0].b;
-							double zoutSample = zout + 0.5 * (zhidz - zlodz); // we want to take into account the sample thickness here
-							double sigma = (dAtomWidth / 2.355); // std of the Gaussian fit for the potential of one atom
-							double NF = zoutSample != 0 ? tPI * sigma * sigma / (wl * zoutSample) : 1.0;
-							XArray2D<double> fiOut, ampOut;
-							ampOut = vint0[0]; ampOut ^= 0.5;
-							XA_IWFR<double> xa_iwfr;
-							if (bVerboseOutput)
-							{
-								printf("\nPerforming Fact * {NF^(-1) - sqrt[NF^(-2) + (Intensity / I0) - 1]} phase retrieval ...");
-								printf("\nFresnel number = %g", NF);
-							}
-							fiOut = xa_iwfr.ConjPhaseGausBeam(vint0[0], epsilon * NF);
-							MakeComplex(ampOut, fiOut, campOut, true);
-						}
-						break;
-						default:
-							throw std::runtime_error("Error: unknown phase retrieval method in the input parameter file.");
-						}
+					break;
+					default:
+						throw std::runtime_error("Error: unknown phase retrieval method in the input parameter file.");
 					}
 
 					// optionally save phase retrieved defocused complex amplitudes in GRC files
@@ -852,27 +839,61 @@ int main(int argc, char* argv[])
 				// now start calculations of the output defocused images
 				if (bVerboseOutput) printf("\nPropagating to output defocus planes ...");
 				XArray3D<double> K3defoc(noutdefocus, ny, nx); // defocused contrast
-				if (bCTF_CT) // if this is true, do either conventioinal or DT-type CTF-CT 
+				if (nPhaseRetrieval <= 3) // for these phase retrieval methods, do Fresnel backpropagation into the reconstructed volume
+				{
+					int iSign = -1; // we want to compensate for (i.e. revert) the known aberrations during the Fresnel backpropagation
+					xar::XArray2DFFT<double> xafft(campOut);
+					xafft.FFT(true, false); // forward FFT once, before propagating to different output planes (to avoid repeated FFTs and speed up calculations) 
+
+					#pragma omp parallel for shared(K3defoc, campOut)
+					for (int n = 0; n < noutdefocus; n++)
+					{
+						if (bAbort) continue;
+						XArray2D<dcomplex> campTemp(campOut);
+						try
+						{
+							// propagate to the output defocused plane
+							//xar::XArray2DFFT<double> xafft(campTemp, false);
+							xar::XArray2DFFT<double> xafft(campTemp, true);
+
+							if (bRelion)
+								xafft.FresnelA(iSign * (zout - voutdefocus[n]), iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, true, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
+								//xafft.FresnelAold(voutdefocus[n] + vastigm[na].a - zout, voutdefocus[n] - vastigm[na].a - zout, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
+							else
+								xafft.Fresnel(iSign * (zout - voutdefocus[n]), true, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
+						}
+						catch (std::exception& E)
+						{
+							printf("\n\n!!!Exception: %s\n", E.what());
+							bAbort = true;
+						}
+						for (int j = 0; j < ny; j++)
+							for (int i = 0; i < nx; i++)
+								K3defoc[n][j][i] = 1.0 - std::norm(campTemp[j][i]);
+					}
+					if (bAbort) throw std::runtime_error("at least one thread has thrown an exception.");
+				}
+				else // for these phase retrieval methods, do variable or constant CTF correction
 				{
 					int iSign = 1; // all aberrations are compensated here by means of division by the relevant forward-propagation aberrated CTF
-					if (nPhaseRetrieval == 2) // CTF retrieval of the phase at different planes inside the reconstruction volume
+					if (nPhaseRetrieval == 4) // variable-distance CTF retrieval of the phase at different planes inside the reconstruction volume
 					{
 						#pragma omp parallel for shared(K3defoc, campOut)
 						for (int n = 0; n < noutdefocus; n++)
 						{
-							double alphaCTF2 = epsilon; // alphaCTF2 will be changed by the call to InvertPhaseCTF()
+							if (bAbort) continue;
 							XArray2D<double> int0temp;
-							int0temp = bGRCinput ? xar::Abs2(campOut) : int0; // we need to renew this for each n, as InversePhaseCTF spoils its first argument
+							int0temp = int0; // we need to renew this for each n, as InversePhaseCTF spoils its first argument
 							try
 							{
-								// propagate to the output defocused plane, i.e. do CTF backpropagation of the projected phase
+								// propagate to the output defocused plane, i.e. do variable CTF correction (CTF backpropagation) of the projected phase
 								XA_IWFR<double> xa_iwfr;
 								if (bRelion)
-									xa_iwfr.InvertPhaseCTF(int0temp, iSign * (zout - voutdefocus[n]), iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, k2maxo, iSign * Cs3, iSign * Cs5, alphaCTF2);
+									xa_iwfr.InvertPhaseCTF(int0temp, iSign * (zout - voutdefocus[n]), iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, k2maxo, iSign * Cs3, iSign * Cs5, asigma, epsilon);
 								else
-									xa_iwfr.InvertPhaseCTF(int0temp, iSign* (zout - voutdefocus[n]), 0, 0, k2maxo, iSign * Cs3, iSign * Cs5, alphaCTF2);
+									xa_iwfr.InvertPhaseCTF(int0temp, iSign * (zout - voutdefocus[n]), 0, 0, k2maxo, iSign * Cs3, iSign * Cs5, asigma, epsilon);
 							}
-							catch (std::runtime_error& E)
+							catch (std::exception& E)
 							{
 								printf("\n\n!!!Exception: %s\n", E.what());
 								bAbort = true;
@@ -881,17 +902,15 @@ int main(int argc, char* argv[])
 								for (int i = 0; i < nx; i++)
 									K3defoc[n][j][i] = int0temp[j][i];
 						}
+						if (bAbort) throw std::runtime_error("at least one thread has thrown an exception.");
 					}
-					else // conventional CTF-CT reconstruction (with backprojection inside the reconstruction volume, instead of the backpropagation)
+					if (nPhaseRetrieval == 5) // conventional CTF-CT reconstruction (with backprojection inside the reconstruction volume, instead of the backpropagation)
 					{
-						double alphaCTF2 = epsilon; // alphaCTF2 will be changed by the call to InvertPhaseCTF()
 						XA_IWFR<double> xa_iwfr;
-						if (bGRCinput) int0 = xar::Abs2(campOut);
 						if (bRelion)
-							xa_iwfr.InvertPhaseCTF(int0, zout, iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, k2maxo, iSign * Cs3, iSign * Cs5, alphaCTF2);
+							xa_iwfr.InvertPhaseCTF(int0, zout, iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, k2maxo, iSign * Cs3, iSign * Cs5, asigma, epsilon);
 						else
-							xa_iwfr.InvertPhaseCTF(int0, zout, 0, 0, k2maxo, iSign * Cs3, iSign * Cs5, alphaCTF2);
-						if (bVerboseOutput) printf("\nMinimal sin^2 in denominator = %g", alphaCTF2);
+							xa_iwfr.InvertPhaseCTF(int0, zout, 0, 0, k2maxo, iSign * Cs3, iSign * Cs5, asigma, epsilon);
 
 						// do backprojection, i.e. uniform smearing of the phase distribution along the illumination directon
 						#pragma omp parallel for shared(K3defoc)
@@ -901,41 +920,10 @@ int main(int argc, char* argv[])
 									K3defoc[n][j][i] = int0[j][i];
 					}
 				}
-				else // reconstruction of the backpropagated contrast function for CHR / DHT process
-				{
-					int iSign = -1; // we want to compensate for (i.e. revert) the known aberrations during the Fresnel backpropagation
-					xar::XArray2DFFT<double> xafft(campOut);
-					xafft.FFT(true, false); // forward FFT once, before propagating to different output planes (to avoid repeated FFTs and speed up calculations) 
-
-					#pragma omp parallel for shared(K3defoc, campOut)
-					for (int n = 0; n < noutdefocus; n++)
-					{
-						XArray2D<dcomplex> campTemp(campOut);
-						try
-						{
-							// propagate to the output defocused plane
-							//xar::XArray2DFFT<double> xafft(campTemp, false);
-							xar::XArray2DFFT<double> xafft(campTemp, true);					
-
-							if (bRelion)
-								xafft.FresnelA(iSign * (zout - voutdefocus[n]), iSign * vastigm[na].a, iSign * vastigm[na].b * PI180, true, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
-								//xafft.FresnelAold(voutdefocus[n] + vastigm[na].a - zout, voutdefocus[n] - vastigm[na].a - zout, false, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
-							else
-								xafft.Fresnel(iSign* (zout - voutdefocus[n]), true, k2maxo, iSign * Cs3, iSign * Cs5); // propagate to z_out[n]
-						}
-						catch (std::runtime_error& E)
-						{
-							printf("\n\n!!!Exception: %s\n", E.what());
-							bAbort = true;
-						}
-						for (int j = 0; j < ny; j++)
-							for (int i = 0; i < nx; i++)
-								K3defoc[n][j][i] = 1.0 - std::norm(campTemp[j][i]);
-					}
-				}
-				if (bAbort) throw std::runtime_error("at least one thread has thrown an exception.");
+			
 				if (bSelectFrames) K3defoc *= sfWeights[na];
 
+				// update the 3D reconstructed object at the current illumination direction
 				if (bVerboseOutput) printf("\nUpdating 3D reconstructed object ...");
 				double xc = (xhi + xlo) / 2.0; // x-coordinate of the centre of rotation
 				double yc = (yhi + ylo) / 2.0; // y-coordinate of the centre of rotation
@@ -980,13 +968,14 @@ int main(int argc, char* argv[])
 				int nx2 = int(nx) - 2, ny2 = int(ny) - 2, noutdefocus2 = noutdefocus - 2;
 				double xx_sinangleZ, xx_cosangleZ, dx0, dx1, dy0, dy1, dz0, dz1, dz0K, dz1K;
 
-#pragma omp parallel for shared (K3out, K3defoc) private(xx, xxx, yyy, zzz, xx_sinangleZ, xx_cosangleZ, dx1, dx0, dy1, dy0, dz1, dz0, ii, jj, nn, dz0K, dz1K)
+				#pragma omp parallel for shared (K3out, K3defoc) private(xx, xxx, yyy, zzz, xx_sinangleZ, xx_cosangleZ, dx1, dx0, dy1, dy0, dz1, dz0, ii, jj, nn, dz0K, dz1K)
 				for (int n = 0; n < noutdefocus; n++)
 				{
 					try
 					{
 						for (int i = 0; i < nx; i++)
 						{
+							if (bAbort) continue;
 							// inverse rotation around Y' axis
 							zzz = zc + z_cosangleY[n] + x_sinangleY[i]; // z coordinate after the inverse rotation around Y'
 							dz1 = (zzz - zlodz) / zst;
@@ -1024,7 +1013,7 @@ int main(int argc, char* argv[])
 							}
 						}
 					}
-					catch (std::runtime_error& E)
+					catch (std::exception& E)
 					{
 						printf("\n\n!!!Exception: %s\n", E.what());
 						bAbort = true;
@@ -1068,15 +1057,15 @@ int main(int argc, char* argv[])
 
 			// normalization of the reconstructed 3D distribution
 			double dnorm;
-			if (bCTF_CT)
+			if (nPhaseRetrieval == 4 || nPhaseRetrieval == 5)
 			{
-				dnorm = wl * EE / PI / std::abs(zhi - zlo); // conversion factor from Fi to V
+				dnorm = wl * EE / PI / (dAtomWidth * 8.0); // conversion factor from Fi to V
 			}
 			else
 			{
 				dnorm = EE * dGamma / dAtomWidth;
 				if (imodeInvLaplace) { if (dzextra != 0) dnorm /= dzextra; } // old DHT reconstruction formula with the inverse Laplacian
-				else dnorm *= -wl / PI; // new DHT reconstruction formula without the inverse Laplacian
+				else dnorm *= -wl / PI; // new CHR reconstruction formula without the inverse Laplacian
 			}
 			if (bSelectFrames) dnorm /= dTotalWeight;
 			else dnorm /= nangles; // 1/nangles plays the role of 1/(4*PI) in the theoretical formula 
@@ -1199,6 +1188,7 @@ int main(int argc, char* argv[])
 #pragma omp parallel for shared (K3out, spln3d, vndefocus, vvdefocus, v2angles, vvoutfilenamesCAmp)
 			for (int na = 0; na < nangles; na++)
 			{
+				if (bAbort) continue;
 				try
 				{
 					vector<Pair> vdefocus;
@@ -1362,7 +1352,7 @@ int main(int argc, char* argv[])
 					vnormaver0[na] /= double(vndefocus[na]);
 					vnormaver1[na] /= double(vndefocus[na]);
 						}
-				catch (std::runtime_error& E)
+				catch (std::exception& E)
 				{
 					printf("\n\n!!!Exception: %s\n", E.what());
 					bAbort = true;
@@ -1422,7 +1412,7 @@ int main(int argc, char* argv[])
 				}
 			}
 
-			int katom = int(datomsize / zst + 0.5), jatom = int(datomsize / yst + 0.5), iatom = int(datomsize / xst + 0.5);
+			int katom = int(datomsizeZ / zst + 0.5), jatom = int(datomsizeXY / yst + 0.5), iatom = int(datomsizeXY / xst + 0.5);
 			int natom(0);
 			vector<int> vimax, vjmax, vkmax;
 			vector<float> xa, ya, za;
@@ -1460,7 +1450,7 @@ int main(int argc, char* argv[])
 				}
 			}
 
-			if (natom == 0) printf("WARNING: no peaks have been found!");
+			if (natom == 0) printf("\n\n!!WARNING: no peaks have been found!");
 			else
 			{
 
@@ -1481,7 +1471,7 @@ int main(int argc, char* argv[])
 				std::qsort(&K3maxPair[0], (size_t)natom, sizeof(Pair2), Pair2comp);
 
 				// exclude the smaller one from each pair of peak positions that are located closer than datomsize to each other (e.g. in adjacent corners of neigbouring cubes)
-				double datomsize2 = datomsize * datomsize;
+				double datomsize2 = datomsizeXY * datomsizeXY;
 				vector<int> vimax1, vjmax1, vkmax1, Znum1;
 				vector<float> xa1, ya1, za1, occ1, wobble1;
 				printf("\nEliminating adjacent peaks in the reconstructed 3D distribution ...");

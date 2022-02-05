@@ -153,6 +153,9 @@ ANY OTHER PROGRAM).
 #include "XA_data.h"
 #include "AddIce.h"
 
+//!!!! temporary (to check the effect of WPOA in free-space propagation)
+//#include "XA_iwfr.h"
+
 using namespace std;
 
 #include "cfpix.hpp"       // complex image handler with FFT
@@ -991,7 +994,18 @@ int autosliccmd(vector<string> params, vector<xar::Pair> defocus, xar::Pair asti
 						xafft.Fresnel(double(wavlen), true, double(k2maxo), C3, C5); // fake propagation is needed in order to enforce the spatial Fourier frequency cutoff or aberrations
 					else
 						xafft.FresnelA(defocus[jjj].b - 0.5 * ctblengthz, astigm.a, astigm.b * pi180, true, double(k2maxo), C3, C5); // propagate to the current defocus distance
-					    //xafft.FresnelAold(defocus[jjj].b - astigm.a, defocus[jjj].b + astigm.a, true, double(k2maxo), C3, C5);
+					#if(0) //!!!! temporary
+					{
+						xafft.FresnelA(-0.5 * ctblengthz, astigm.a, astigm.b * pi180, true, double(k2maxo), C3, C5); // propagate to the current defocus distance
+						xar::XA_IWFR<float> abcd;
+						xar::XArray2D<float> pha0;
+						xar::CArg(camp, pha0);
+						abcd.ForwardPhaseCTF(pha0, defocus[jjj].b, astigm.a, astigm.b* pi180, double(k2maxo), C3, C5);
+						pha0 ^= 0.5;
+						xar::MakeComplex<float>(pha0, 0, camp, true);
+					}
+					#endif
+					
 
 					#if(1)
 					// old code, implementing Z" rotation and XY shifts for the defocused images
