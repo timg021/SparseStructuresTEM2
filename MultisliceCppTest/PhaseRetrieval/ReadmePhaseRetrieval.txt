@@ -80,12 +80,12 @@ Here is a typical example of a valid PhaseRetrieval.txt parameter file.
 10.Objective_aperture_(half_angle)_in_mrad: 0.0
 11.Spherical_aberration_Cs3,_Cs5_in_mm: 2.7 0.0
 12.Absorption_coefficient_(fraction_of_the_real_part): 0.1
-13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_conventional-CTF(5): 3
+13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_cCTF(5): 3
 14.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
 15.Maximal_number_of_iterations(IWFR): 200
 16.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2)_or_multiplicative_factor(-0.5LogAmp,ConjPhaseGausBeam): 1.0
-17.Output_defocus_distances_min_and_max_in_Angstroms: -233.984 0.0
-18.Extra_defocus_for_3D_reconstruction_in_Angstroms_(0_activates_CTF-CT_mode): 100.0
+17.Output_defocus_distances_min_and_max_in_Angstroms: -116.992 116.992
+18.Extra_defocus_for_3D_reconstruction_in_Angstroms: 100.0
 19.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
 20.Input_file_with_rotation_angles_enforcing_symmetry: Defocus8foldSymmetry.txt
 21.Inverse_3D_Laplacian_mode:_not_apply(0)_or_apply(1): 0
