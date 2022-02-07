@@ -83,7 +83,7 @@ Here is a typical example of a valid PhaseRetrieval.txt parameter file.
 13.Phase_retrieval_method_IWFR(1),_CTFL2(2),_-0.5LogAmp(3),_vCTF(4),_or_cCTF(5): 3
 14.Save_phase_retrieved_defocused_complex_amplitudes_in_files_Yes(1)_or_No(0): 0
 15.Maximal_number_of_iterations(IWFR): 200
-16.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2)_or_multiplicative_factor(-0.5LogAmp,ConjPhaseGausBeam): 1.0
+16.Minimal_phase_error(IWFR),_regularization_parameter(CTFL2,vCTF,cCTF)_or_multiplicative_factor(-0.5LogAmp): 1.0
 17.Output_defocus_distances_min_and_max_in_Angstroms: -116.992 116.992
 18.Extra_defocus_for_3D_reconstruction_in_Angstroms: 100.0
 19.Enforce_symmetry:_not_apply(0),_distribute_input_orientations(1),_post_apply(2): 0
@@ -98,7 +98,7 @@ Here is a typical example of a valid PhaseRetrieval.txt parameter file.
 28.File_name_base_of_3D_potential_in_TIFF_or_GRD_format: C:\Users\tgureyev\Downloads\Temp\aout.grd
 29.Import_and_reprocess_existing_3D_potential_files:_No(0)_or_Yes(1): 1
 30.Folder_name_for_auxiliary_files_output: C:\Users\tgureyev\Downloads\Temp\000temp
-32.Number_of_parallel_threads: 20
+31.Number_of_parallel_threads: 20
 //*****
 //Wavelength_in_Angstroms: E=200 keV <-> 0.02507934, E=300 keV <-> 0.01968749
 //*****!!!Don't forget to save this file after editing the parameters
@@ -266,7 +266,7 @@ Parameter 16 specifies the following parameters, depending on the value of Param
 (a) The pre-defined minimal phase reconstruction error in the case of the IWFR algorithm.
 Typical value is ~ 1.e-8. IWFR iterations are interrupted when the relative difference with 
 the previous iteration becomes smaller than this value.
-(b) Tikhonov regularization parameter in the case of CTFL2, vCTF and CTF algorithms.
+(b) Tikhonov regularization parameter in the case of CTFL2, vCTF and cCTF algorithms.
 Typical value is ~ 1.e-12 for the CTFL2 algorithm or 0.01 for the vCTF and cCTF algorithms.
 Setting this parameter to zero forces the internal implementation of the CTF correction algorithms
 to use an estimated "optimal" value of this parameter which can be different at each illumination direction.
@@ -375,10 +375,10 @@ The name of this XYZ file is created from the name template defined by Parameter
 at the end of the filename, immediately preceding the file extension, which in turn is changed
 to ".xyz" here. This file is also saved in the folder specified in Parameter 30.
 
-Parameter 27 defines the length (in angstroms) of the side of a moving parallelepiped area ("box") that is
-used for peak localization in the reconstructed or imported 3D potential. Note that we exclude the
-"atom_size"-wide vicinity of the outer boundary from this search, as we expect that this vicinity
-may oten contain artefacts. If the peak localization is not performed, parameter 27 is ignored. 
+Parameter 27 defines the transverse (x and y) and longitudinal (z) side lengths of a moving parallelepiped
+area ("box") that is used for peak localization in the reconstructed or imported 3D potential. 
+Note that we exclude the "atom_size"-wide vicinity of the outer boundary from this search, as we expect that
+this vicinity may oten contain artefacts. If the peak localization is not performed, parameter 27 is ignored. 
 
 Parameter 28 contains a fully specified pathname for the output or input files (in GRD 
 format  or uncompressed 32-bit floating-point TIFF format) containing 2D sections of 
